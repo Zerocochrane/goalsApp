@@ -144,6 +144,25 @@ Cada usuário só vê e altera as próprias atividades (de outro usuário → `4
 - Não rode o mesmo número em dois servidores ao mesmo tempo (ex.: dev e produção): use
   `WA_DISABLED=true` no ambiente que não deve conectar.
 
+## Agendador
+
+Serviço em [`server/src/scheduler/scheduler.js`](server/src/scheduler/scheduler.js), iniciado
+pelo `server/index.js`. Roda a cada minuto (`node-cron`, fuso `America/Sao_Paulo`):
+
+1. `pendente` com `expiresAt` vencido → `falhou`.
+2. Gera as `TaskOccurrence` cujo horário já chegou (status `pendente`, token aleatório de
+   32 bytes, `expiresAt` = horário + 1h). Olha 1 dia para trás, então um minuto perdido não
+   perde atividade. A idempotência vem do índice único `(activityId, date)`.
+3. Envia pelo WhatsApp: `*<atividade>* deve ser feita agora! Depois de concluir, clique neste
+link para validar a atividade. APP_URL/validar/<token>` e grava `notifiedAt`. Se o envio
+   falhar, tenta de novo a cada 2 min enquanto o link vale. Usuário sem telefone não recebe.
+
+- **Recuperação após reinício:** no start, olha até 31 dias para trás. O que deveria ter sido
+  gerado com o servidor fora nasce `falhou`; o que ainda está dentro de 1h é enviado.
+- Uma atividade criada (ou editada) depois do horário do dia só começa a valer no próximo dia.
+- Testes com relógio simulado em
+  [`server/test/scheduler.test.js`](server/test/scheduler.test.js) (SQLite temporário).
+
 ## Frontend
 
 React 19 + Vite, com React Router 7 (o 8 exige Node 22) e `date-fns` com locale `ptBR`.
