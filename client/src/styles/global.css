@@ -91,6 +91,75 @@ a:hover {
   display: none;
 }
 
+/* ---------- Alternância de tema ---------- */
+
+/* Ligada por ~400ms ao trocar de tema: cores mudam suavemente em toda a página. */
+.theme-transition,
+.theme-transition *,
+.theme-transition *::before,
+.theme-transition *::after {
+  transition:
+    background-color 0.35s ease,
+    border-color 0.35s ease,
+    color 0.35s ease,
+    fill 0.35s ease,
+    stroke 0.35s ease,
+    box-shadow 0.35s ease !important;
+}
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.theme-toggle:hover {
+  background: var(--color-surface-muted);
+}
+
+.theme-icon {
+  overflow: visible;
+}
+
+.theme-icon-sun,
+.theme-icon-moon {
+  transform-box: view-box;
+  transform-origin: 12px 12px;
+  transition:
+    transform 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.3s ease;
+}
+
+/* Modo claro mostra o sol; o escuro mostra a lua. A troca gira e cruza os ícones. */
+.theme-toggle[data-theme-icon='light'] .theme-icon-moon,
+.theme-toggle[data-theme-icon='dark'] .theme-icon-sun {
+  opacity: 0;
+}
+
+.theme-toggle[data-theme-icon='light'] .theme-icon-moon {
+  transform: rotate(-90deg) scale(0.4);
+}
+
+.theme-toggle[data-theme-icon='dark'] .theme-icon-sun {
+  transform: rotate(90deg) scale(0.4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-icon-sun,
+  .theme-icon-moon {
+    transition: none;
+  }
+}
+
 /* ---------- Sequência (streak) ---------- */
 
 .streak-badge {

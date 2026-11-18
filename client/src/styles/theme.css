@@ -1,8 +1,9 @@
 /*
  * Cores e medidas do app. Use sempre as variáveis (nunca cores fixas nos componentes).
  *
- * Modo escuro: segue o sistema por padrão. Para forçar um tema, defina
- * <html data-theme="light"> ou <html data-theme="dark"> (base para o botão de alternância).
+ * Modo escuro: o script inline de index.html define <html data-theme="light|dark">
+ * (preferência salva ou, na falta dela, a do sistema) e o ThemeToggle alterna.
+ * O bloco @media abaixo é só a reserva para quando o atributo não estiver definido.
  */
 :root {
   color-scheme: light;

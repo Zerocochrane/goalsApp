@@ -12,6 +12,10 @@ const ptBR = {
     loggingOut: 'Saindo…',
     nav: 'Navegação principal',
   },
+  theme: {
+    activateDark: 'Ativar modo escuro',
+    activateLight: 'Ativar modo claro',
+  },
   streak: {
     title: 'Sequência de dias com todas as atividades concluídas',
     days: (n) => (n === 1 ? '1 dia' : `${n} dias`),

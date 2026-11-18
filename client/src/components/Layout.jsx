@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet } from 'react-router';
 import { useAuth } from '../auth/AuthContext.jsx';
 import t from '../i18n/pt-BR.js';
 import StreakBadge from './StreakBadge.jsx';
+import ThemeToggle from './ThemeToggle.jsx';
 
 export default function Layout() {
   const { user, logout } = useAuth();
@@ -28,8 +29,9 @@ export default function Layout() {
           <div className="header-slot" data-slot="streak">
             <StreakBadge />
           </div>
-          {/* Espaço reservado: alternância de tema claro/escuro */}
-          <div className="header-slot" data-slot="theme" />
+          <div className="header-slot" data-slot="theme">
+            <ThemeToggle />
+          </div>
 
           <span className="app-user">{t.header.greeting(user.name || user.username)}</span>
           <button
