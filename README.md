@@ -88,6 +88,22 @@ Todas as outras rotas `/api/*` exigem login (401 sem sessão), exceto `GET /api/
 pelo deploy. O login aceita 5 tentativas erradas por minuto por IP. Nas rotas, use os middlewares
 `requireAuth` e `requireMaster` de [`server/src/auth/middleware.js`](server/src/auth/middleware.js).
 
+## Frontend
+
+React 19 + Vite, com React Router 7 (o 8 exige Node 22) e `date-fns` com locale `ptBR`.
+
+| Onde                                                         | O quê                                                                            |
+| ------------------------------------------------------------ | -------------------------------------------------------------------------------- |
+| [`client/src/i18n/pt-BR.js`](client/src/i18n/pt-BR.js)       | **Todos** os textos da interface — nada de texto fixo nos componentes            |
+| [`client/src/auth/`](client/src/auth/)                       | Contexto de login (`/api/auth/me` ao carregar) e rotas protegidas                |
+| [`client/src/lib/api.js`](client/src/lib/api.js)             | `api(path, { method, body })` — chama `/api`; um 401 encerra a sessão no app     |
+| [`client/src/lib/dates.js`](client/src/lib/dates.js)         | `format()` / `formatLongDate()` do date-fns já em pt-BR                          |
+| [`client/src/styles/theme.css`](client/src/styles/theme.css) | Variáveis CSS de cor; modo escuro pelo sistema ou por `<html data-theme="dark">` |
+
+Sem sessão, qualquer rota protegida manda para `/login?redirect=<url original>` e, depois do
+login, volta para essa URL (usado pelo link de validação enviado no WhatsApp). Só caminhos
+internos são aceitos no `redirect`.
+
 ## Deploy
 
 Cada push na `main` publica o app no servidor via GitHub Actions
