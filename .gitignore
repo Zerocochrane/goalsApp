@@ -1,0 +1,40 @@
+# Dependências
+node_modules/
+
+# Build
+dist/
+client/dist/
+
+# Variáveis de ambiente (segredos) — só o .env.example é versionado
+.env
+.env.*
+!.env.example
+
+# Banco SQLite e dados de runtime (inclui a sessão do WhatsApp)
+server/data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# Sessão do WhatsApp (Baileys)
+auth_info*/
+baileys_auth*/
+whatsapp-session*/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Sistema / editores
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Claude Code
+.claude/worktrees/

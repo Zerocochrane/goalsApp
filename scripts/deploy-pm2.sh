@@ -28,8 +28,12 @@ if [ ! -f server/package.json ] || [ ! -f client/package.json ]; then
 fi
 
 command -v node >/dev/null || fail "Node.js não está instalado."
-NODE_MAJOR="$(node -v | sed -E 's/^v([0-9]+).*/\1/')"
-[ "$NODE_MAJOR" -ge 20 ] || fail "Este projeto precisa do Node.js 20 ou superior (encontrado $(node -v))."
+NODE_MAJOR="$(node -v | sed -E 's/^v([0-9]+)\..*/\1/')"
+NODE_MINOR="$(node -v | sed -E 's/^v[0-9]+\.([0-9]+).*/\1/')"
+# Vite 8 e ESLint 10 exigem Node 20.19+ (ou 22.12+)
+if [ "$NODE_MAJOR" -lt 20 ] || { [ "$NODE_MAJOR" -eq 20 ] && [ "$NODE_MINOR" -lt 19 ]; }; then
+  fail "Este projeto precisa do Node.js 20.19 ou superior (encontrado $(node -v))."
+fi
 command -v pm2 >/dev/null || fail "PM2 não está instalado."
 
 # Corrige finais de linha do Windows
