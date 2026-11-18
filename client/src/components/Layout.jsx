@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, NavLink, Outlet } from 'react-router';
 import { useAuth } from '../auth/AuthContext.jsx';
 import t from '../i18n/pt-BR.js';
+import StreakBadge from './StreakBadge.jsx';
 
 export default function Layout() {
   const { user, logout } = useAuth();
@@ -24,8 +25,9 @@ export default function Layout() {
         </Link>
 
         <div className="app-header-actions">
-          {/* Espaço reservado: sequência de dias (streak) */}
-          <div className="header-slot" data-slot="streak" />
+          <div className="header-slot" data-slot="streak">
+            <StreakBadge />
+          </div>
           {/* Espaço reservado: alternância de tema claro/escuro */}
           <div className="header-slot" data-slot="theme" />
 

@@ -7,6 +7,7 @@ import { activitiesRouter } from './activities/routes.js';
 import { calendarRouter } from './activities/calendar.js';
 import { whatsappRouter } from './whatsapp/routes.js';
 import { occurrencesRouter } from './occurrences/routes.js';
+import { streakRouter } from './streak/routes.js';
 
 export function createApp() {
   const app = express();
@@ -32,6 +33,7 @@ export function createApp() {
   app.use('/api/activities', activitiesRouter()); // sempre do próprio usuário
   app.use('/api/calendar', calendarRouter());
   app.use('/api/occurrences', occurrencesRouter()); // validação pelo link do WhatsApp
+  app.use('/api/streak', streakRouter()); // sequência do próprio usuário
   app.use('/api/whatsapp', whatsappRouter()); // somente admin master
 
   app.use('/api', (_req, res) => {

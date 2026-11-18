@@ -12,6 +12,14 @@ const ptBR = {
     loggingOut: 'Saindo…',
     nav: 'Navegação principal',
   },
+  streak: {
+    title: 'Sequência de dias com todas as atividades concluídas',
+    days: (n) => (n === 1 ? '1 dia' : `${n} dias`),
+    aria: (n) => `Sequência: ${n === 1 ? '1 dia seguido' : `${n} dias seguidos`}`,
+    celebrationTitle: 'Parabéns!',
+    celebrationText: (n) => `Parabéns! Você completou ${n} dias seguidos! 🔥`,
+    celebrationClose: 'Continuar',
+  },
   nav: {
     home: 'Início',
     users: 'Usuários',

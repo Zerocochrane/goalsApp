@@ -91,6 +91,86 @@ a:hover {
   display: none;
 }
 
+/* ---------- Sequência (streak) ---------- */
+
+.streak-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+  font-weight: 600;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.streak-badge .streak-icon {
+  filter: grayscale(1);
+  opacity: 0.6;
+}
+
+.streak-badge-active {
+  color: var(--color-warning);
+}
+
+.streak-badge-active .streak-icon {
+  filter: none;
+  opacity: 1;
+}
+
+.celebration-dialog {
+  text-align: center;
+}
+
+.celebration-dialog[open] {
+  animation: celebration-in 0.35s ease-out;
+}
+
+.celebration-icon {
+  font-size: 3rem;
+  line-height: 1;
+  margin-bottom: var(--space-3);
+}
+
+.celebration-dialog[open] .celebration-icon {
+  animation: celebration-pop 0.6s ease-out 0.15s both;
+}
+
+.celebration-actions {
+  justify-content: center;
+}
+
+@keyframes celebration-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+}
+
+@keyframes celebration-pop {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .celebration-dialog[open],
+  .celebration-dialog[open] .celebration-icon {
+    animation: none;
+  }
+}
+
 .app-user {
   color: var(--color-text-muted);
   white-space: nowrap;
