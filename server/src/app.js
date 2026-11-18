@@ -24,10 +24,19 @@ export function createApp({ clientDist = process.env.CLIENT_DIST || DEFAULT_CLIE
   const app = express();
 
   app.disable('x-powered-by');
+  // Cabeçalhos de segurança básicos (o Nginx acrescenta HSTS em produção)
+  app.use((_req, res, next) => {
+    res.set({
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+      'Referrer-Policy': 'strict-origin-when-cross-origin',
+    });
+    next();
+  });
   // Em produção o app fica atrás do Nginx, na mesma máquina:
   // confia em proxies locais para obter o IP real do cliente (usado no rate limit).
   app.set('trust proxy', process.env.TRUST_PROXY || 'loopback');
-  app.use(express.json());
+  app.use(express.json({ limit: '100kb' }));
   app.use(cookieParser());
 
   // Rotas públicas

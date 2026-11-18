@@ -11,15 +11,23 @@ export const publicUserSelect = {
   createdAt: true,
 };
 
-/** Exige sessão válida; coloca o usuário em req.user. */
+/**
+ * Exige sessão válida; coloca o usuário em req.user. A sessão cai se o usuário foi
+ * removido ou se a senha mudou depois do login (versão da sessão diferente).
+ */
 export async function requireAuth(req, res, next) {
-  const userId = readSession(req);
-  const user =
-    userId && (await prisma.user.findUnique({ where: { id: userId }, select: publicUserSelect }));
-  if (!user) {
-    if (userId) clearSessionCookie(res); // usuário removido: limpa o cookie
+  const session = readSession(req);
+  const found =
+    session &&
+    (await prisma.user.findUnique({
+      where: { id: session.userId },
+      select: { ...publicUserSelect, sessionVersion: true },
+    }));
+  if (!found || found.sessionVersion !== session.version) {
+    if (session) clearSessionCookie(res); // cookie que não vale mais: limpa
     return res.status(401).json({ error: 'Não autenticado' });
   }
+  const { sessionVersion: _version, ...user } = found;
   req.user = user;
   next();
 }

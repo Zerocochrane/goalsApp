@@ -12,6 +12,8 @@
     "dev": "concurrently --kill-others-on-fail --names server,client --prefix-colors blue,magenta \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
     "build": "npm run build --prefix client",
     "start": "npm start --prefix server",
+    "test": "npm test --prefix server",
+    "test:e2e": "npm run build && playwright test",
     "deploy": "bash scripts/deploy-pm2.sh",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -20,6 +22,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.65.1",
     "concurrently": "^9.2.5",
     "eslint": "^10.15.0",
     "eslint-config-prettier": "^10.1.8",

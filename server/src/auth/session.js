@@ -12,7 +12,9 @@ function secret() {
 
 /** Garante que o JWT_SECRET existe antes de o servidor subir. */
 export function assertAuthConfig() {
-  secret();
+  if (secret().length < 32) {
+    console.warn('JWT_SECRET curto: use um texto aleatório com pelo menos 32 caracteres.');
+  }
 }
 
 function isSecureCookie() {
@@ -33,8 +35,12 @@ function cookieOptions() {
   };
 }
 
+/**
+ * Grava o cookie de login. `v` é a versão da sessão do usuário: quando a senha muda,
+ * a versão sobe e os cookies emitidos antes deixam de valer (ver requireAuth).
+ */
 export function setSessionCookie(res, user) {
-  const token = jwt.sign({ sub: String(user.id) }, secret(), {
+  const token = jwt.sign({ sub: String(user.id), v: user.sessionVersion ?? 0 }, secret(), {
     algorithm: 'HS256',
     expiresIn: Math.floor(MAX_AGE_MS / 1000),
   });
@@ -45,14 +51,19 @@ export function clearSessionCookie(res) {
   res.clearCookie(COOKIE_NAME, cookieOptions());
 }
 
-/** Retorna o id do usuário do token, ou null se ausente/inválido/expirado. */
+/**
+ * Retorna `{ userId, version }` do token, ou null se ausente/inválido/expirado.
+ * Tokens anteriores à versão de sessão (sem `v`) valem como versão 0.
+ */
 export function readSession(req) {
   const token = req.cookies?.[COOKIE_NAME];
-  if (!token) return null;
+  if (typeof token !== 'string' || !token) return null;
   try {
     const payload = jwt.verify(token, secret(), { algorithms: ['HS256'] });
-    const id = Number(payload.sub);
-    return Number.isInteger(id) ? id : null;
+    const userId = Number(payload.sub);
+    const version = payload.v ?? 0;
+    if (!Number.isSafeInteger(userId) || userId <= 0 || !Number.isInteger(version)) return null;
+    return { userId, version };
   } catch {
     return null;
   }

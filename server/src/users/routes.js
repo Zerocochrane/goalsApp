@@ -1,5 +1,6 @@
 // Gestão de usuários (somente admin master) e "Meu perfil" (qualquer usuário logado).
 import { Router } from 'express';
+import { rateLimit } from 'express-rate-limit';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../db/prisma.js';
 import { publicUserSelect, requireMaster } from '../auth/middleware.js';
@@ -36,7 +37,11 @@ async function readUserInput(body, { partial }) {
   if (!partial || (body.password !== undefined && body.password !== '')) {
     const result = parsePassword(body.password);
     if (result.error) errors.password = result.error;
-    else data.passwordHash = await hashPassword(result.value);
+    else {
+      data.passwordHash = await hashPassword(result.value);
+      // Senha redefinida pelo admin: derruba as sessões abertas desse usuário
+      if (partial) data.sessionVersion = { increment: 1 };
+    }
   }
 
   return { data, errors };
@@ -122,6 +127,21 @@ export function usersRouter() {
   return router;
 }
 
+// Troca de senha: 5 tentativas erradas por minuto por usuário (evita adivinhar a senha
+// atual com uma sessão roubada). Trocas bem-sucedidas não contam.
+const passwordChangeLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 5,
+  skipSuccessfulRequests: true,
+  keyGenerator: (req) => `user:${req.user.id}`,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { error: 'Muitas tentativas de alterar a senha. Aguarde um minuto e tente novamente.' },
+});
+
+const isChangingPassword = (body) =>
+  typeof body?.newPassword === 'string' && body.newPassword !== '';
+
 /** "Meu perfil": o próprio usuário altera telefone e senha. */
 export function profileRouter() {
   const router = Router();
@@ -130,47 +150,54 @@ export function profileRouter() {
     res.json({ user: req.user });
   });
 
-  router.put('/', async (req, res) => {
-    const body = req.body ?? {};
-    const data = {};
-    const errors = {};
+  router.put(
+    '/',
+    (req, res, next) =>
+      isChangingPassword(req.body) ? passwordChangeLimiter(req, res, next) : next(),
+    async (req, res) => {
+      const body = req.body ?? {};
+      const data = {};
+      const errors = {};
 
-    if (body.phone !== undefined) {
-      const result = parsePhone(body.phone);
-      if (result.error) errors.phone = result.error;
-      else data.phone = result.value;
-    }
-
-    const changingPassword = typeof body.newPassword === 'string' && body.newPassword !== '';
-    if (changingPassword) {
-      const result = parsePassword(body.newPassword);
-      if (result.error) errors.newPassword = result.error;
-      if (typeof body.currentPassword !== 'string' || !body.currentPassword) {
-        errors.currentPassword = 'Informe a senha atual';
+      if (body.phone !== undefined) {
+        const result = parsePhone(body.phone);
+        if (result.error) errors.phone = result.error;
+        else data.phone = result.value;
       }
-    }
-    if (Object.keys(errors).length) return validationError(res, errors);
 
-    if (changingPassword) {
-      const current = await prisma.user.findUnique({
+      const changingPassword = isChangingPassword(body);
+      if (changingPassword) {
+        const result = parsePassword(body.newPassword);
+        if (result.error) errors.newPassword = result.error;
+        if (typeof body.currentPassword !== 'string' || !body.currentPassword) {
+          errors.currentPassword = 'Informe a senha atual';
+        }
+      }
+      if (Object.keys(errors).length) return validationError(res, errors);
+
+      if (changingPassword) {
+        const current = await prisma.user.findUnique({
+          where: { id: req.user.id },
+          select: { passwordHash: true },
+        });
+        if (!(await verifyPassword(body.currentPassword, current.passwordHash))) {
+          const error = 'Senha atual incorreta';
+          return res.status(400).json({ error, fields: { currentPassword: error } });
+        }
+        data.passwordHash = await hashPassword(body.newPassword);
+        // Derruba as outras sessões; esta recebe um cookie novo logo abaixo
+        data.sessionVersion = { increment: 1 };
+      }
+
+      const { sessionVersion, ...user } = await prisma.user.update({
         where: { id: req.user.id },
-        select: { passwordHash: true },
+        data,
+        select: { ...publicUserSelect, sessionVersion: true },
       });
-      if (!(await verifyPassword(body.currentPassword, current.passwordHash))) {
-        const error = 'Senha atual incorreta';
-        return res.status(400).json({ error, fields: { currentPassword: error } });
-      }
-      data.passwordHash = await hashPassword(body.newPassword);
-    }
-
-    const user = await prisma.user.update({
-      where: { id: req.user.id },
-      data,
-      select: publicUserSelect,
-    });
-    if (changingPassword) setSessionCookie(res, user); // renova a sessão atual
-    res.json({ user });
-  });
+      if (changingPassword) setSessionCookie(res, { ...user, sessionVersion }); // renova a sessão atual
+      res.json({ user });
+    },
+  );
 
   return router;
 }

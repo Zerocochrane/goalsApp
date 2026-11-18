@@ -24,6 +24,7 @@ model User {
   phone                String? // WhatsApp em formato E.164 (ex.: +5532999999999)
   isMaster             Boolean  @default(false)
   lastCelebratedStreak Int      @default(0)
+  sessionVersion       Int      @default(0) // muda ao trocar a senha: derruba sessões antigas
   createdAt            DateTime @default(now())
 
   activities  Activity[]

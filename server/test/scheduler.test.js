@@ -1,5 +1,5 @@
 // Agendador com relógio simulado, sobre um SQLite temporário com as migrations reais.
-import { test, describe, before, after, beforeEach } from 'node:test';
+import { test, describe, beforeAll as before, afterAll as after, beforeEach } from 'vitest';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';

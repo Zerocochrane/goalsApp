@@ -52,14 +52,16 @@ O `server/.env` nunca é versionado.
 
 ## Execução
 
-| Comando          | O que faz                                                           |
-| ---------------- | ------------------------------------------------------------------- |
-| `npm run dev`    | Sobe server (`node --watch`) e client (Vite) em paralelo            |
-| `npm run build`  | Gera o build de produção do frontend em `client/dist`               |
-| `npm start`      | Sobe o server, que também serve o build (`client/dist`), se existir |
-| `npm run deploy` | Deploy no PM2 (veja [Deploy](#deploy))                              |
-| `npm run lint`   | Roda o ESLint em todo o projeto (`lint:fix` corrige o que der)      |
-| `npm run format` | Formata tudo com o Prettier (`format:check` só verifica)            |
+| Comando            | O que faz                                                           |
+| ------------------ | ------------------------------------------------------------------- |
+| `npm run dev`      | Sobe server (`node --watch`) e client (Vite) em paralelo            |
+| `npm run build`    | Gera o build de produção do frontend em `client/dist`               |
+| `npm start`        | Sobe o server, que também serve o build (`client/dist`), se existir |
+| `npm test`         | Testes do backend — unidade e API (veja [Testes](#testes))          |
+| `npm run test:e2e` | Compila o frontend e roda os testes de ponta a ponta (Playwright)   |
+| `npm run deploy`   | Deploy no PM2 (veja [Deploy](#deploy))                              |
+| `npm run lint`     | Roda o ESLint em todo o projeto (`lint:fix` corrige o que der)      |
+| `npm run format`   | Formata tudo com o Prettier (`format:check` só verifica)            |
 
 Em desenvolvimento, abra <http://localhost:4101>. O Vite encaminha `/api` para a API
 (<http://localhost:4100/api/health> responde `{"status":"ok"}`).
@@ -91,7 +93,9 @@ depois não altera um admin já criado).
 | `GET /api/auth/me`      | Usuário logado (401 sem sessão)                            |
 
 Todas as outras rotas `/api/*` exigem login (401 sem sessão), exceto `GET /api/health`, usada
-pelo deploy. O login aceita 5 tentativas erradas por minuto por IP. Nas rotas, use os middlewares
+pelo deploy. O login aceita 5 tentativas erradas por minuto por IP. Trocar a senha (em **Meu
+perfil** ou pelo admin) derruba as sessões abertas em outros aparelhos: o JWT leva a
+`sessionVersion` do usuário, que sobe a cada troca. Nas rotas, use os middlewares
 `requireAuth` e `requireMaster` de [`server/src/auth/middleware.js`](server/src/auth/middleware.js).
 
 ### Usuários
@@ -102,7 +106,7 @@ qualquer outro usuário recebe `403`). Cada usuário criado administra apenas os
 WhatsApp em E.164 brasileiro (`+55` + DDD + número). O master não pode excluir a si mesmo.
 
 Em **Meu perfil** (`/api/profile`), qualquer usuário altera o próprio telefone e a própria senha
-(pedindo a senha atual).
+(pedindo a senha atual; 5 tentativas erradas por minuto).
 
 ## Atividades e calendário
 
@@ -126,7 +130,7 @@ Cada usuário só vê e altera as próprias atividades (de outro usuário → `4
   concluídas) ou `pendente`. O período do calendário vai até 93 dias.
 - Datas são AAAA-MM-DD em `America/Sao_Paulo` — lógica em
   [`server/src/activities/recurrence.js`](server/src/activities/recurrence.js), testada com
-  `npm test --prefix server` (`node --test`).
+  `npm test` (veja [Testes](#testes)).
 
 ## WhatsApp (Baileys)
 
@@ -181,6 +185,44 @@ React 19 + Vite, com React Router 7 (o 8 exige Node 22) e `date-fns` com locale 
 Sem sessão, qualquer rota protegida manda para `/login?redirect=<url original>` e, depois do
 login, volta para essa URL (usado pelo link de validação enviado no WhatsApp). Só caminhos
 internos são aceitos no `redirect`.
+
+## Testes
+
+| Comando            | O que roda                                                  |
+| ------------------ | ----------------------------------------------------------- |
+| `npm test`         | Vitest em `server/test/` — unidade e API (Supertest), ~30 s |
+| `npm run test:e2e` | `npm run build` + Playwright em `e2e/` (Chromium; ~1–2 min) |
+
+- **API** ([`server/test/api/`](server/test/api/)): o app Express real sobre um SQLite temporário
+  com as migrations reais — login/cookie/JWT e rate limit, permissões (master × usuário ×
+  sem login), usuários e perfil, atividades (validação, isolamento entre usuários, versões),
+  calendário, validação pelo link (concluída, já validada, expirada, de outra pessoa) e
+  sequência.
+- **E2E** ([`e2e/`](e2e/)): sobe `server/index.js` servindo o build, na porta 4199, com banco
+  próprio em `e2e/.data/` (apagado a cada execução) e WhatsApp desligado.
+  - `fluxo.spec.js`: login → criar atividade → validar pelo link → dia verde; e link expirado →
+    atividade e dia vermelhos. A atividade é de amanhã e o agendador roda com relógio simulado,
+    então o teste não depende da hora em que roda.
+  - `revisao.spec.js`: todas as telas em claro e escuro, no celular (360 px), tablet e desktop —
+    textos em pt-BR, cores do tema e nenhuma rolagem horizontal. Grava um print de cada tela em
+    `test-results/`.
+- Na primeira vez, instale o navegador: `npx playwright install chromium`.
+
+## Revisão de segurança
+
+| Item          | Como está                                                                                                                   |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Senhas        | bcrypt (12 rounds); usuário inexistente gasta o mesmo tempo (não revela quem existe)                                        |
+| Cookie        | `goals_session`: `httpOnly`, `sameSite=lax`, `secure` com `APP_URL` em HTTPS, 7 dias                                        |
+| JWT           | HS256 fixo (rejeita `none`/outro algoritmo); `sessionVersion` derruba sessões ao trocar a senha                             |
+| Rate limit    | Login: 5 erros/min por IP (IP real via Nginx, `trust proxy` só do loopback). Troca de senha: 5 erros/min por usuário        |
+| Permissões    | Tudo em `/api` exige login; `/api/users` e `/api/whatsapp` só master; dados sempre do próprio usuário (404 para o de outro) |
+| Link WhatsApp | Token aleatório de 32 bytes; exige login do dono; vale 1 hora e uma única vez (UPDATE condicional)                          |
+| Cabeçalhos    | `X-Content-Type-Options`, `X-Frame-Options: DENY`, `Referrer-Policy` (o Nginx acrescenta HSTS)                              |
+| Entrada       | JSON até 100 kB; validação de todos os campos no servidor; `redirect` do login só aceita caminhos internos                  |
+
+Ponto em aberto: não há CSP (o `index.html` tem um script inline que aplica o tema antes da
+primeira pintura); o `sameSite=lax` já impede que outro site use a sessão em POSTs.
 
 ## Deploy
 

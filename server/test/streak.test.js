@@ -1,4 +1,4 @@
-import { test, describe } from 'node:test';
+import { test, describe } from 'vitest';
 import assert from 'node:assert/strict';
 import { buildCalendar } from '../src/activities/recurrence.js';
 import { computeStreak, milestoneFor, pendingMilestone } from '../src/streak/streak.js';

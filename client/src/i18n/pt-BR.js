@@ -136,7 +136,7 @@ const ptBR = {
   activity: {
     createTitle: 'Nova atividade',
     editTitle: 'Editar atividade',
-    startsOn: (day) => `A recorrência começa em ${day}`,
+    startsOn: (day) => `A recorrência começa em ${day.charAt(0).toLowerCase()}${day.slice(1)}`,
     editStartsOn: 'As alterações valem a partir de hoje; dias passados não mudam.',
     name: 'Nome',
     namePlaceholder: 'Ex.: Academia',

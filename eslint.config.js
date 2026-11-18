@@ -21,6 +21,11 @@ export default [
       'no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
     },
   },
+  // Testes E2E: Node + funções avaliadas no navegador (page.evaluate)
+  {
+    files: ['e2e/**/*.js'],
+    languageOptions: { globals: { ...globals.node, ...globals.browser } },
+  },
   {
     files: ['**/*.cjs'],
     languageOptions: { sourceType: 'commonjs' },

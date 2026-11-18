@@ -451,6 +451,18 @@ a:hover {
   border-bottom-color: var(--color-primary);
 }
 
+/* Celular: os 4 links do admin cabem na tela sem rolar a barra para o lado */
+@media (max-width: 480px) {
+  .app-nav {
+    gap: 0;
+    padding: 0 var(--space-2);
+  }
+
+  .app-nav-link {
+    padding: var(--space-3) var(--space-2);
+  }
+}
+
 /* ---------- Páginas e formulários ---------- */
 
 .page-header {
