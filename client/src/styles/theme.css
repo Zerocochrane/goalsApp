@@ -25,6 +25,7 @@
   --color-success-text: #116430;
   --color-danger-text: #9b1717;
   --color-focus: #93b4f8;
+  --tap-highlight: rgb(37 99 235 / 12%);
   --shadow-card: 0 1px 2px rgb(16 24 40 / 6%), 0 4px 16px rgb(16 24 40 / 6%);
 
   --radius: 10px;
@@ -61,6 +62,7 @@
     --color-success-text: #6ee79a;
     --color-danger-text: #fca5a5;
     --color-focus: #3b5fa8;
+    --tap-highlight: rgb(91 141 239 / 18%);
     --shadow-card: 0 1px 2px rgb(0 0 0 / 40%), 0 4px 16px rgb(0 0 0 / 30%);
   }
 }
@@ -85,5 +87,6 @@
   --color-success-text: #6ee79a;
   --color-danger-text: #fca5a5;
   --color-focus: #3b5fa8;
+  --tap-highlight: rgb(91 141 239 / 18%);
   --shadow-card: 0 1px 2px rgb(0 0 0 / 40%), 0 4px 16px rgb(0 0 0 / 30%);
 }

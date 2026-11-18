@@ -6,7 +6,9 @@ export default function NotFoundPage() {
     <section>
       <h1>{t.notFound.title}</h1>
       <p className="muted">{t.notFound.description}</p>
-      <Link to="/">{t.notFound.back}</Link>
+      <Link to="/" className="button button-ghost">
+        {t.notFound.back}
+      </Link>
     </section>
   );
 }
