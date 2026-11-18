@@ -38,6 +38,7 @@
   --space-8: 32px;
   --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --header-height: 56px;
+  --bottom-nav-height: 56px;
   --content-width: 960px;
 }
 

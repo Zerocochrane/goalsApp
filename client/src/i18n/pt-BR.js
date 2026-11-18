@@ -29,6 +29,8 @@ const ptBR = {
     users: 'Usuários',
     whatsapp: 'WhatsApp',
     profile: 'Meu perfil',
+    // Rótulo curto da barra de abas no rodapé (celular)
+    profileShort: 'Perfil',
   },
   users: {
     title: 'Usuários',
