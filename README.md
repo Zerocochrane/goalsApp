@@ -98,6 +98,30 @@ WhatsApp em E.164 brasileiro (`+55` + DDD + número). O master não pode excluir
 Em **Meu perfil** (`/api/profile`), qualquer usuário altera o próprio telefone e a própria senha
 (pedindo a senha atual).
 
+## Atividades e calendário
+
+Cada usuário só vê e altera as próprias atividades (de outro usuário → `404`).
+
+| Rota                                       | O que faz                                                     |
+| ------------------------------------------ | ------------------------------------------------------------- |
+| `GET /api/activities`                      | Atividades ativas do usuário, por horário                     |
+| `POST /api/activities`                     | `{ name, hour, minute, weekdays, startDate? }` (padrão: hoje) |
+| `PUT /api/activities/:id`                  | Edita (campos omitidos ficam como estão)                      |
+| `DELETE /api/activities/:id`               | Exclusão lógica (`active=false`)                              |
+| `GET /api/calendar?start=AAAA-MM-DD&end=…` | Por dia: atividades previstas + ocorrências + status do dia   |
+
+- `weekdays`: dias 0–6 (0 = domingo); pelo menos um. `startDate` não pode ser no passado.
+- A atividade repete nos dias escolhidos a partir de `startDate` até `endDate` (null = sem fim).
+- **Dias passados não mudam:** editar ou excluir uma atividade que já valeu em algum dia encerra
+  essa versão (`active=false`, `endDate` = véspera) e, na edição, cria uma nova versão (novo `id`;
+  a resposta traz `previousId`). Ocorrências já geradas ficam com a versão que as gerou. Se a
+  ocorrência de hoje já foi enviada ou resolvida, a mudança vale a partir de amanhã.
+- Status do dia: `vazio` (sem atividades), `falhou` (alguma falhou), `concluido` (todas
+  concluídas) ou `pendente`. O período do calendário vai até 93 dias.
+- Datas são AAAA-MM-DD em `America/Sao_Paulo` — lógica em
+  [`server/src/activities/recurrence.js`](server/src/activities/recurrence.js), testada com
+  `npm test --prefix server` (`node --test`).
+
 ## Frontend
 
 React 19 + Vite, com React Router 7 (o 8 exige Node 22) e `date-fns` com locale `ptBR`.
