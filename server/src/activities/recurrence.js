@@ -134,7 +134,7 @@ export function dayStatus(statuses) {
  * Monta o calendário de `start` a `end`: para cada dia, as atividades previstas
  * pela recorrência junto com a ocorrência real (se já foi gerada) e o status do dia.
  *
- * - `activities`: { id, name, hour, minute, weekdays, startDate, endDate }
+ * - `activities`: { id, name, hour, minute, weekdays, startDate, endDate, active }
  * - `occurrences`: { id, activityId, date, status, …, activity: { name, hour, minute } }
  *
  * Ocorrências reais sem previsão correspondente (ex.: a atividade foi editada depois)
@@ -184,6 +184,8 @@ function toItem(activity, occurrence) {
     hour: activity.hour,
     minute: activity.minute,
     time: formatTime(activity.hour, activity.minute),
+    // Só a versão ativa pode ser editada/excluída (versões encerradas ficam no histórico)
+    editable: activity.active === true,
     status: occurrence?.status ?? 'pendente',
     occurrence: occurrence && {
       id: occurrence.id,

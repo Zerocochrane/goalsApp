@@ -41,6 +41,7 @@ export function calendarRouter() {
           weekdays: true,
           startDate: true,
           endDate: true,
+          active: true,
         },
       }),
       prisma.taskOccurrence.findMany({

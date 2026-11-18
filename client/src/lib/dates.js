@@ -44,10 +44,14 @@ export function addDays(date, days) {
   return new Date(toUtc(date) + days * DAY_MS).toISOString().slice(0, 10);
 }
 
+/** Dia da semana: 0 = domingo, 1 = segunda … 6 = sábado (como na API). */
+export function weekdayOf(date) {
+  return new Date(toUtc(date)).getUTCDay();
+}
+
 /** Segunda-feira da semana de `date` (AAAA-MM-DD). */
 export function startOfWeek(date) {
-  const weekday = new Date(toUtc(date)).getUTCDay(); // 0 = domingo
-  return addDays(date, -((weekday + 6) % 7));
+  return addDays(date, -((weekdayOf(date) + 6) % 7));
 }
 
 /** Date local (meia-noite) para formatar com o date-fns sem deslocar o dia. */

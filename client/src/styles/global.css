@@ -647,3 +647,152 @@ a:hover {
     display: none;
   }
 }
+
+/* ---------- Atividade: criar/editar ---------- */
+
+.week-notice:empty {
+  display: none;
+}
+
+.week-day-open {
+  cursor: pointer;
+}
+
+.week-activity-button {
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  width: 100%;
+  padding: 2px var(--space-1);
+  margin: 0 calc(-1 * var(--space-1));
+  background: none;
+  border: 0;
+  border-radius: var(--radius-small);
+  cursor: pointer;
+}
+
+.week-activity-button:hover {
+  background: var(--color-surface-muted);
+}
+
+.week-add {
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+  min-height: 32px;
+  padding: 0 var(--space-2);
+  background: none;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-small);
+  cursor: pointer;
+}
+
+.week-add:hover {
+  border-color: var(--color-primary);
+  background: var(--color-surface-muted);
+}
+
+.activity-dialog {
+  width: min(480px, calc(100vw - 2 * var(--space-4)));
+}
+
+.activity-dialog-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.button-icon {
+  min-height: 36px;
+  min-width: 36px;
+  padding: 0;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.activity-dialog-desc {
+  font-size: 0.9375rem;
+}
+
+.activity-time-field .input {
+  max-width: 160px;
+}
+
+.weekday-fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0 0 var(--space-4);
+  min-width: 0;
+}
+
+.weekday-fieldset legend {
+  padding: 0;
+  margin-bottom: var(--space-1);
+}
+
+.weekday-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.weekday-option {
+  position: relative;
+}
+
+.weekday-option input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.weekday-option span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  min-height: 40px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  background: var(--color-surface);
+  color: var(--color-text);
+  user-select: none;
+}
+
+.weekday-option input:checked + span {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.weekday-option input:focus-visible + span {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.weekday-option input:disabled + span {
+  opacity: 0.7;
+}
+
+.weekday-fieldset[aria-invalid='true'] .weekday-option span {
+  border-color: var(--color-danger);
+}
+
+.activity-dialog-actions {
+  flex-wrap: wrap;
+}
+
+.activity-remove {
+  margin-right: auto;
+}

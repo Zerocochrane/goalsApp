@@ -31,6 +31,7 @@ function activity(overrides = {}) {
     weekdays: [MON, WED, FRI],
     startDate: '2026-11-18', // quarta-feira
     endDate: null,
+    active: true,
     ...overrides,
   };
 }
@@ -202,6 +203,7 @@ describe('buildCalendar', () => {
       ],
     );
     assert.equal(wed.status, 'pendente');
+    assert.ok(wed.activities.every((a) => a.editable));
 
     const mon = days[0];
     assert.equal(mon.isPast, true);
@@ -224,5 +226,6 @@ describe('buildCalendar', () => {
     assert.equal(tue.status, 'falhou');
     assert.equal(tue.activities[0].name, 'Corrida');
     assert.equal(tue.activities[0].activityId, 99);
+    assert.equal(tue.activities[0].editable, false);
   });
 });
