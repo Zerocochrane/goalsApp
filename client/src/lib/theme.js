@@ -27,6 +27,17 @@ export function prefersReducedMotion() {
   return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 }
 
+// Cor da barra do navegador no celular (<meta name="theme-color">): a mesma do
+// cabeçalho (--color-surface). Mantenha em sincronia com index.html.
+export const THEME_COLORS = { light: '#ffffff', dark: '#181c22' };
+
+function applyThemeColor(theme) {
+  for (const meta of document.querySelectorAll('meta[name="theme-color"]')) {
+    meta.removeAttribute('media');
+    meta.setAttribute('content', THEME_COLORS[theme]);
+  }
+}
+
 let transitionTimer;
 
 // Aplica o tema no <html>. Com `animate`, liga por um instante a transição
@@ -39,6 +50,7 @@ export function applyTheme(theme, { animate = false } = {}) {
     transitionTimer = setTimeout(() => root.classList.remove('theme-transition'), 400);
   }
   root.dataset.theme = theme;
+  applyThemeColor(theme);
 }
 
 export function saveTheme(theme) {

@@ -7,6 +7,22 @@
       content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"
     />
     <title>Goals</title>
+    <meta
+      name="description"
+      content="Suas metas e atividades do dia, com lembretes pelo WhatsApp."
+    />
+    <!-- Cor da barra do navegador no celular: igual ao cabeçalho (--color-surface).
+         O script abaixo e src/lib/theme.js trocam para o tema escolhido no app. -->
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#181c22" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Goals" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <script>
       // Aplica o tema antes da primeira pintura (evita "flash" de tema errado).
       // Mesma chave/lógica de src/lib/theme.js.
@@ -22,6 +38,13 @@
               : 'light';
         }
         document.documentElement.setAttribute('data-theme', theme);
+        // Mesmas cores de THEME_COLORS em src/lib/theme.js
+        var color = theme === 'dark' ? '#181c22' : '#ffffff';
+        var metas = document.querySelectorAll('meta[name="theme-color"]');
+        for (var i = 0; i < metas.length; i++) {
+          metas[i].removeAttribute('media');
+          metas[i].setAttribute('content', color);
+        }
       })();
     </script>
   </head>
