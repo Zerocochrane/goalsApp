@@ -33,7 +33,15 @@ function proxy(req, res) {
       port: API.port,
       path: req.url,
       method: req.method,
-      headers: { ...req.headers, host: API.host, 'x-forwarded-host': req.headers.host },
+      headers: {
+        ...req.headers,
+        host: API.host,
+        'x-forwarded-host': req.headers.host,
+        // IP real do cliente para a API (rate limit do login)
+        'x-forwarded-for': [req.headers['x-forwarded-for'], req.socket.remoteAddress]
+          .filter(Boolean)
+          .join(', '),
+      },
     },
     (up) => {
       res.writeHead(up.statusCode, up.headers);

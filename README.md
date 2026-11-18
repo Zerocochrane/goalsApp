@@ -37,6 +37,7 @@ cp server/.env.example server/.env
 | `WEB_PORT`              | Porta do frontend (padrão 4101)                                  |
 | `APP_URL`               | Endereço público do app (usado nos links enviados pelo WhatsApp) |
 | `JWT_SECRET`            | Texto longo e aleatório para assinar o login — **troque**        |
+| `COOKIE_SECURE`         | `false` só se o app for servido em `http://` fora do localhost   |
 | `DATABASE_URL`          | Caminho do banco SQLite (`file:./data/goals.db`)                 |
 | `MASTER_ADMIN_USER`     | Usuário do admin master criado no primeiro start                 |
 | `MASTER_ADMIN_PASSWORD` | Senha do admin master — **troque**                               |
@@ -69,6 +70,23 @@ SQLite com Prisma 7 (driver `better-sqlite3`). O schema fica em
 | `npm run db:deploy`    | `prisma migrate deploy` — aplica migrations (usado no deploy) |
 | `npm run db:generate`  | Regera o Prisma Client (roda sozinho no `npm install`)        |
 | `npm run db:studio`    | Abre o Prisma Studio para ver os dados                        |
+
+## Autenticação
+
+Login com usuário e senha (hash bcrypt). A sessão é um JWT (7 dias) num cookie `httpOnly`,
+`secure`, `sameSite=lax`. No primeiro start, o servidor cria o **admin master** com
+`MASTER_ADMIN_USER` / `MASTER_ADMIN_PASSWORD` (só se ainda não existir — mudar a senha no `.env`
+depois não altera um admin já criado).
+
+| Rota                    | O que faz                                                  |
+| ----------------------- | ---------------------------------------------------------- |
+| `POST /api/auth/login`  | `{ username, password }` → grava o cookie e devolve `user` |
+| `POST /api/auth/logout` | Apaga o cookie                                             |
+| `GET /api/auth/me`      | Usuário logado (401 sem sessão)                            |
+
+Todas as outras rotas `/api/*` exigem login (401 sem sessão), exceto `GET /api/health`, usada
+pelo deploy. O login aceita 5 tentativas erradas por minuto por IP. Nas rotas, use os middlewares
+`requireAuth` e `requireMaster` de [`server/src/auth/middleware.js`](server/src/auth/middleware.js).
 
 ## Deploy
 

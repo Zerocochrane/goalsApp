@@ -2,6 +2,8 @@
 import 'dotenv/config';
 import { createApp } from './src/app.js';
 import { connectDatabase, disconnectDatabase } from './src/db/prisma.js';
+import { assertAuthConfig } from './src/auth/session.js';
+import { ensureMasterAdmin } from './src/auth/seed.js';
 
 process.env.TZ ||= 'America/Sao_Paulo';
 
@@ -10,6 +12,9 @@ const port = Number(process.env.PORT || process.env.API_PORT || 4100);
 
 const journalMode = await connectDatabase();
 console.log(`SQLite conectado (journal_mode=${journalMode})`);
+
+assertAuthConfig();
+await ensureMasterAdmin();
 
 const app = createApp();
 
