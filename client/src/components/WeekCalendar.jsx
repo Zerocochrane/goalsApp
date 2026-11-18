@@ -13,6 +13,13 @@ import {
 import { apiErrorMessage } from '../lib/errors.js';
 import t from '../i18n/pt-BR.js';
 
+// Atualização automática: a cada 60s com a aba visível e ao voltar para a aba
+const POLL_INTERVAL_MS = 60_000;
+
+// Ícone de cada status (a cor nunca é o único indicador)
+const STATUS_ICON = { concluida: '✓', falhou: '✕', pendente: '○' };
+const DAY_STATUS_ICON = { concluido: '✓', falhou: '✕' };
+
 /** Calendário da semana (segunda a domingo), consumindo GET /api/calendar. */
 export default function WeekCalendar() {
   const [weekStart, setWeekStart] = useState(() => startOfWeek(todayInSaoPaulo()));
@@ -25,6 +32,8 @@ export default function WeekCalendar() {
   const [notice, setNotice] = useState('');
   // Elemento que abriu o modal (recebe o foco de volta ao fechar)
   const openerRef = useRef(null);
+  // true quando a próxima recarga é automática (falha nela não esconde o calendário)
+  const backgroundRef = useRef(false);
   const titleRef = useRef(null);
   // Depois de salvar/excluir: dia cujo foco deve ser restaurado quando a recarga chegar
   const pendingFocusRef = useRef(null);
@@ -35,17 +44,42 @@ export default function WeekCalendar() {
 
   useEffect(() => {
     let ignore = false;
+    const background = backgroundRef.current;
+    backgroundRef.current = false;
     api(`/calendar?start=${weekStart}&end=${addDays(weekStart, 6)}`)
       .then((data) => {
         if (!ignore) setResult({ key: requestKey, weekStart, days: data.days });
       })
       .catch((err) => {
-        if (!ignore) setError({ key: requestKey, message: apiErrorMessage(err) });
+        if (ignore) return;
+        // Recarga automática que falhou: mantém os dados atuais e tenta de novo no próximo ciclo
+        if (background) {
+          setResult((current) => (current ? { ...current, key: requestKey } : current));
+          return;
+        }
+        setError({ key: requestKey, message: apiErrorMessage(err) });
       });
     return () => {
       ignore = true;
     };
   }, [weekStart, requestKey]);
+
+  // Polling a cada 60s (só com a aba visível) e recarga ao voltar para a aba
+  useEffect(() => {
+    function refresh() {
+      if (document.visibilityState !== 'visible') return;
+      backgroundRef.current = true;
+      setReloadKey((k) => k + 1);
+    }
+    const timer = setInterval(refresh, POLL_INTERVAL_MS);
+    document.addEventListener('visibilitychange', refresh);
+    window.addEventListener('focus', refresh);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', refresh);
+      window.removeEventListener('focus', refresh);
+    };
+  }, []);
 
   const loadError = error?.key === requestKey ? error.message : '';
   // Ao recarregar a mesma semana (depois de salvar), mantém os dias atuais na tela
@@ -173,6 +207,17 @@ export default function WeekCalendar() {
         </ol>
       )}
 
+      <ul className="status-legend" aria-label={t.calendar.legendLabel}>
+        {['concluida', 'falhou', 'pendente'].map((status) => (
+          <li key={status}>
+            <span className={`status-swatch status-swatch-${status}`} aria-hidden="true">
+              {STATUS_ICON[status]}
+            </span>
+            {t.calendar.legend[status]}
+          </li>
+        ))}
+      </ul>
+
       {dialog && (
         <ActivityDialog
           key={`${dialog.date}|${dialog.activityId ?? 'nova'}`}
@@ -203,6 +248,7 @@ function DayColumn({ day, onCreate, onEdit }) {
     <li
       className={classes.join(' ')}
       aria-current={day.isToday ? 'date' : undefined}
+      data-status={day.status}
       onClick={handleDayClick}
     >
       <h3 className="week-day-header">
@@ -213,6 +259,12 @@ function DayColumn({ day, onCreate, onEdit }) {
           <span className="week-day-date">{formatDayMonth(day.date)}</span>
         </span>
         {day.isToday && <span className="badge week-day-badge">{t.calendar.todayBadge}</span>}
+        {DAY_STATUS_ICON[day.status] && (
+          <span className={`badge day-status day-status-${day.status}`}>
+            <span aria-hidden="true">{DAY_STATUS_ICON[day.status]}</span>
+            {t.calendar.dayStatus[day.status]}
+          </span>
+        )}
       </h3>
 
       {day.activities.length === 0 ? (
@@ -228,14 +280,20 @@ function DayColumn({ day, onCreate, onEdit }) {
               {item.editable ? (
                 <button
                   type="button"
-                  className="week-activity-button"
+                  className="week-activity-button week-activity-row"
                   onClick={(event) => onEdit(event, item)}
-                  aria-label={t.calendar.editActivityAria(item.time, item.name)}
+                  aria-label={t.calendar.editActivityAria(
+                    item.time,
+                    item.name,
+                    t.calendar.activityStatus[item.status],
+                  )}
                 >
                   <ActivityLabel item={item} />
                 </button>
               ) : (
-                <ActivityLabel item={item} />
+                <div className="week-activity-row">
+                  <ActivityLabel item={item} />
+                </div>
               )}
             </li>
           ))}
@@ -260,11 +318,17 @@ function DayColumn({ day, onCreate, onEdit }) {
 function ActivityLabel({ item }) {
   return (
     <>
-      <time className="week-activity-time">{item.time}</time>
-      <span className="week-activity-sep" aria-hidden="true">
-        {' – '}
+      <span className="status-icon" aria-hidden="true">
+        {STATUS_ICON[item.status]}
       </span>
-      <span className="week-activity-name">{item.name}</span>
+      <span className="week-activity-body">
+        <time className="week-activity-time">{item.time}</time>
+        <span className="week-activity-sep" aria-hidden="true">
+          {' – '}
+        </span>
+        <span className="week-activity-name">{item.name}</span>
+        <span className="sr-only">, {t.calendar.activityStatus[item.status]}</span>
+      </span>
     </>
   );
 }

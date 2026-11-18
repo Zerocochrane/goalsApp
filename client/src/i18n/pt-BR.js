@@ -104,7 +104,22 @@ const ptBR = {
     retry: 'Tentar novamente',
     addActivity: 'Adicionar',
     addActivityAria: (day) => `Nova atividade em ${day}`,
-    editActivityAria: (time, name) => `Editar ${name} às ${time}`,
+    editActivityAria: (time, name, status) => `Editar ${name} às ${time} (${status})`,
+    activityStatus: {
+      concluida: 'Concluída',
+      falhou: 'Falhou',
+      pendente: 'Pendente',
+    },
+    dayStatus: {
+      concluido: 'Dia concluído',
+      falhou: 'Dia com falha',
+    },
+    legendLabel: 'Legenda das cores',
+    legend: {
+      concluida: 'Concluída',
+      falhou: 'Falhou',
+      pendente: 'Pendente / futura',
+    },
   },
   activity: {
     createTitle: 'Nova atividade',

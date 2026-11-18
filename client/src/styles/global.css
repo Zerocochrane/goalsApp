@@ -578,13 +578,126 @@ a:hover {
   font-variant-numeric: tabular-nums;
 }
 
-.week-activity[data-status='concluida'] .week-activity-name {
-  text-decoration: line-through;
+/* Status: cor + ícone (✓ / ✕ / ○) + texto para leitores de tela — nunca só a cor */
+.week-activity {
+  border-left: 3px solid transparent;
+  border-radius: var(--radius-small);
+}
+
+.week-activity-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  padding: 2px var(--space-1);
+}
+
+.status-icon {
+  flex: none;
+  width: 1.1em;
+  text-align: center;
+  font-weight: 700;
+  line-height: inherit;
   color: var(--color-text-muted);
 }
 
-.week-activity[data-status='falhou'] .week-activity-time {
-  color: var(--color-danger);
+.week-activity-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.week-activity[data-status='concluida'] {
+  background: var(--color-success-bg);
+  border-left-color: var(--color-success);
+  color: var(--color-success-text);
+}
+
+.week-activity[data-status='falhou'] {
+  background: var(--color-danger-bg);
+  border-left-color: var(--color-danger);
+  color: var(--color-danger-text);
+}
+
+.week-activity[data-status='concluida'] .status-icon,
+.week-activity[data-status='falhou'] .status-icon {
+  color: inherit;
+}
+
+/* Dia: borda superior colorida + selo com ícone e texto */
+.week-day[data-status='concluido'] {
+  border-top: 4px solid var(--color-success);
+}
+
+.week-day[data-status='falhou'] {
+  border-top: 4px solid var(--color-danger);
+}
+
+.day-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 0;
+}
+
+.day-status-concluido {
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
+  box-shadow: inset 0 0 0 1px var(--color-success);
+}
+
+.day-status-falhou {
+  background: var(--color-danger-bg);
+  color: var(--color-danger-text);
+  box-shadow: inset 0 0 0 1px var(--color-danger);
+}
+
+.status-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+.status-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.status-legend .status-swatch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.4em;
+  height: 1.4em;
+  border-radius: var(--radius-small);
+  font-weight: 700;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.status-legend .status-swatch-concluida {
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
+  border-color: var(--color-success);
+}
+
+.status-legend .status-swatch-falhou {
+  background: var(--color-danger-bg);
+  color: var(--color-danger-text);
+  border-color: var(--color-danger);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /* Desktop: 7 colunas, segunda a domingo */
@@ -663,8 +776,7 @@ a:hover {
   color: inherit;
   text-align: left;
   width: 100%;
-  padding: 2px var(--space-1);
-  margin: 0 calc(-1 * var(--space-1));
+  padding: 0;
   background: none;
   border: 0;
   border-radius: var(--radius-small);
