@@ -15,11 +15,19 @@ export function assertAuthConfig() {
   secret();
 }
 
+function isSecureCookie() {
+  const forced = process.env.COOKIE_SECURE;
+  if (forced === 'true') return true;
+  if (forced === 'false') return false;
+  return (process.env.APP_URL || '').startsWith('https://');
+}
+
 function cookieOptions() {
   return {
     httpOnly: true,
-    // COOKIE_SECURE=false só para servir sem HTTPS (navegadores aceitam secure em localhost)
-    secure: process.env.COOKIE_SECURE !== 'false',
+    // Cookie "secure" só funciona em HTTPS. Padrão: segue o APP_URL (https:// → secure).
+    // COOKIE_SECURE=true|false em server/.env força o valor.
+    secure: isSecureCookie(),
     sameSite: 'lax',
     path: '/',
   };
