@@ -2,6 +2,7 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import { authRouter } from './auth/routes.js';
 import { requireAuth } from './auth/middleware.js';
+import { profileRouter, usersRouter } from './users/routes.js';
 
 export function createApp() {
   const app = express();
@@ -21,6 +22,9 @@ export function createApp() {
 
   // Daqui para baixo, tudo em /api exige login
   app.use('/api', requireAuth);
+
+  app.use('/api/users', usersRouter()); // somente admin master
+  app.use('/api/profile', profileRouter());
 
   app.use('/api', (_req, res) => {
     res.status(404).json({ error: 'Rota não encontrada' });

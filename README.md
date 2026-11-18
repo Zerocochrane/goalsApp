@@ -88,6 +88,16 @@ Todas as outras rotas `/api/*` exigem login (401 sem sessão), exceto `GET /api/
 pelo deploy. O login aceita 5 tentativas erradas por minuto por IP. Nas rotas, use os middlewares
 `requireAuth` e `requireMaster` de [`server/src/auth/middleware.js`](server/src/auth/middleware.js).
 
+### Usuários
+
+Só o **admin master** cria, edita e exclui usuários (página **Usuários**, API `/api/users` —
+qualquer outro usuário recebe `403`). Cada usuário criado administra apenas os próprios dados
+(atividades, telefone, sequência). O nome de usuário é guardado em minúsculas e o telefone
+WhatsApp em E.164 brasileiro (`+55` + DDD + número). O master não pode excluir a si mesmo.
+
+Em **Meu perfil** (`/api/profile`), qualquer usuário altera o próprio telefone e a própria senha
+(pedindo a senha atual).
+
 ## Frontend
 
 React 19 + Vite, com React Router 7 (o 8 exige Node 22) e `date-fns` com locale `ptBR`.

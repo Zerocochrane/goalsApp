@@ -41,7 +41,15 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  const value = useMemo(() => ({ ...state, login, logout }), [state, login, logout]);
+  // Atualiza os dados do usuário logado (ex.: depois de editar o perfil)
+  const updateUser = useCallback((user) => {
+    setState((prev) => (prev.status === 'authenticated' ? { ...prev, user } : prev));
+  }, []);
+
+  const value = useMemo(
+    () => ({ ...state, login, logout, updateUser }),
+    [state, login, logout, updateUser],
+  );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

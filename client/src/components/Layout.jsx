@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, Outlet } from 'react-router';
+import { Link, NavLink, Outlet } from 'react-router';
 import { useAuth } from '../auth/AuthContext.jsx';
 import t from '../i18n/pt-BR.js';
 
@@ -40,6 +40,20 @@ export default function Layout() {
           </button>
         </div>
       </header>
+
+      <nav className="app-nav" aria-label={t.header.nav}>
+        <NavLink to="/" end className="app-nav-link">
+          {t.nav.home}
+        </NavLink>
+        {user.isMaster && (
+          <NavLink to="/usuarios" className="app-nav-link">
+            {t.nav.users}
+          </NavLink>
+        )}
+        <NavLink to="/perfil" className="app-nav-link">
+          {t.nav.profile}
+        </NavLink>
+      </nav>
 
       <main className="app-main">
         <Outlet />

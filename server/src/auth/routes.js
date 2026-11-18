@@ -34,7 +34,14 @@ export function authRouter() {
       return res.status(400).json({ error: 'Informe usuário e senha' });
     }
 
-    const user = await prisma.user.findUnique({ where: { username: username.trim() } });
+    // Usuários criados pelo master são sempre minúsculos; o nome exato vem primeiro
+    // para não quebrar um admin master criado com maiúsculas no .env.
+    const name = username.trim();
+    const user =
+      (await prisma.user.findUnique({ where: { username: name } })) ??
+      (name !== name.toLowerCase()
+        ? await prisma.user.findUnique({ where: { username: name.toLowerCase() } })
+        : null);
     const ok = user
       ? await verifyPassword(password, user.passwordHash)
       : await burnPasswordCheck(password);
