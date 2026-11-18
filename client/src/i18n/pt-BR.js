@@ -90,7 +90,17 @@ const ptBR = {
   home: {
     title: 'Início',
     today: (date) => `Hoje é ${date}.`,
-    placeholder: 'Em breve, suas atividades aparecerão aqui.',
+  },
+  calendar: {
+    previous: 'Anterior',
+    next: 'Próxima',
+    previousAria: 'Semana anterior',
+    nextAria: 'Próxima semana',
+    today: 'Hoje',
+    todayBadge: 'Hoje',
+    daysLabel: 'Dias da semana',
+    empty: 'Nenhuma atividade',
+    retry: 'Tentar novamente',
   },
   notFound: {
     title: 'Página não encontrada',
