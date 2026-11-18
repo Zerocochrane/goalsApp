@@ -1,0 +1,93 @@
+# Publica o Goals App no servidor (Oracle Cloud) a cada push na branch main.
+# Baseado no workflow do repositório Site — roda no MESMO servidor, em pasta,
+# processos PM2 e portas próprios (API 4100 / frontend 4101), sem tocar no Site.
+#
+# Segredos necessários (GitHub → Settings → Secrets and variables → Actions).
+# Podem ser os MESMOS valores do repositório Site, exceto OCI_PATH:
+#   OCI_HOST        IP ou domínio do servidor
+#   OCI_USER        usuário SSH (ex.: ubuntu)
+#   OCI_SSH_KEY     chave PRIVADA de deploy (a mesma ~/.ssh/github_deploy do Site)
+#   OCI_PATH        pasta do Goals App no servidor (ex.: /home/ubuntu/goalsApp)
+#                   ⚠️ NUNCA a mesma pasta do Site — o rsync --delete apagaria o Site
+#   OCI_KNOWN_HOSTS (recomendado) linha "known_hosts" do servidor
+#   OCI_PORT        (opcional) porta SSH, padrão 22
+#
+# O que NÃO é enviado nem apagado no servidor: server/.env, banco SQLite,
+# sessão do WhatsApp (server/data/), logs e node_modules.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-goalsapp
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Preparar SSH
+        env:
+          SSH_KEY: ${{ secrets.OCI_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.OCI_KNOWN_HOSTS }}
+          HOST: ${{ secrets.OCI_HOST }}
+          PORT: ${{ secrets.OCI_PORT }}
+          DEST: ${{ secrets.OCI_PATH }}
+        run: |
+          set -euo pipefail
+          [ -n "$SSH_KEY" ] || { echo "::error::Segredo OCI_SSH_KEY ausente (Settings → Secrets and variables → Actions)"; exit 1; }
+          [ -n "$HOST" ] || { echo "::error::Segredo OCI_HOST ausente (Settings → Secrets and variables → Actions)"; exit 1; }
+          [ -n "$DEST" ] || { echo "::error::Segredo OCI_PATH ausente (Settings → Secrets and variables → Actions)"; exit 1; }
+          case "$DEST" in
+            */goalsApp|*/goalsApp/|*/goalsapp|*/goalsapp/) ;;
+            *) echo "::error::OCI_PATH ($DEST) deve terminar em /goalsApp para não sobrescrever o Site."; exit 1 ;;
+          esac
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+          if [ -n "$KNOWN_HOSTS" ]; then
+            printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else
+            echo "::warning::OCI_KNOWN_HOSTS não configurado — usando ssh-keyscan (menos seguro)."
+            ssh-keyscan -p "${PORT:-22}" -H "$HOST" > ~/.ssh/known_hosts 2>/dev/null
+          fi
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Enviar código
+        env:
+          HOST: ${{ secrets.OCI_HOST }}
+          USER: ${{ secrets.OCI_USER }}
+          DEST: ${{ secrets.OCI_PATH }}
+          PORT: ${{ secrets.OCI_PORT }}
+        run: |
+          set -euo pipefail
+          SSH="ssh -i ~/.ssh/deploy_key -p ${PORT:-22} -o BatchMode=yes -o ConnectTimeout=20"
+          $SSH "$USER@$HOST" "mkdir -p '$DEST'"
+          # --delete remove do servidor arquivos de código que foram apagados no GitHub;
+          # tudo que está em --exclude fica intocado.
+          rsync -az --delete -e "$SSH" \
+            --exclude '.git/' --exclude '.github/' \
+            --exclude 'node_modules/' --exclude 'client/dist/' \
+            --exclude 'server/.env' --exclude 'server/data/' \
+            --exclude 'logs/' \
+            ./ "$USER@$HOST:$DEST/"
+
+      - name: Instalar, compilar e reiniciar (deploy-pm2.sh)
+        env:
+          HOST: ${{ secrets.OCI_HOST }}
+          USER: ${{ secrets.OCI_USER }}
+          DEST: ${{ secrets.OCI_PATH }}
+          PORT: ${{ secrets.OCI_PORT }}
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/deploy_key -p "${PORT:-22}" -o BatchMode=yes "$USER@$HOST" \
+            "bash -lc 'cd \"$DEST\" && bash scripts/deploy-pm2.sh'"
+
+      - name: Limpar chave
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
