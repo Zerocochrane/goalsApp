@@ -4,6 +4,7 @@ import Field from './Field.jsx';
 import { api } from '../lib/api.js';
 import { formatWeekdayDayMonth, todayInSaoPaulo, weekdayOf } from '../lib/dates.js';
 import { apiErrorMessage, apiFieldErrors } from '../lib/errors.js';
+import useMediaQuery, { SHEET_QUERY } from '../lib/useMediaQuery.js';
 import t from '../i18n/pt-BR.js';
 
 export const ACTIVITY_NAME_MAX = 80;
@@ -165,6 +166,22 @@ export default function ActivityDialog({ date, activityId = null, onClose, onDon
   }
 
   const disabled = busy || loadState !== 'ready';
+  // Celular (bottom sheet): "Excluir" sai do rodapé fixo e fica afastado, abaixo dele
+  const isSheet = useMediaQuery(SHEET_QUERY);
+
+  const removeButton = isEdit && loadState === 'ready' && (
+    <button
+      type="button"
+      className="button button-ghost button-ghost-danger activity-remove"
+      onClick={() => {
+        setRemoveError('');
+        setConfirmOpen(true);
+      }}
+      disabled={busy}
+    >
+      {t.activity.remove}
+    </button>
+  );
 
   return (
     <>
@@ -267,19 +284,7 @@ export default function ActivityDialog({ date, activityId = null, onClose, onDon
           )}
 
           <div className="dialog-actions activity-dialog-actions">
-            {isEdit && loadState === 'ready' && (
-              <button
-                type="button"
-                className="button button-ghost button-ghost-danger activity-remove"
-                onClick={() => {
-                  setRemoveError('');
-                  setConfirmOpen(true);
-                }}
-                disabled={busy}
-              >
-                {t.activity.remove}
-              </button>
-            )}
+            {!isSheet && removeButton}
             <button type="button" className="button button-ghost" onClick={onClose} disabled={busy}>
               {t.activity.cancel}
             </button>
@@ -292,6 +297,7 @@ export default function ActivityDialog({ date, activityId = null, onClose, onDon
               </button>
             )}
           </div>
+          {isSheet && removeButton && <div className="activity-remove-zone">{removeButton}</div>}
         </form>
       </dialog>
 

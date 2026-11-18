@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import ActivityDialog from './ActivityDialog.jsx';
 import { api } from '../lib/api.js';
@@ -12,6 +12,7 @@ import {
   weekdayName,
 } from '../lib/dates.js';
 import { apiErrorMessage } from '../lib/errors.js';
+import useMediaQuery from '../lib/useMediaQuery.js';
 import t from '../i18n/pt-BR.js';
 
 // Atualização automática: a cada 60s com a aba visível e ao voltar para a aba
@@ -24,20 +25,6 @@ const DAY_STATUS_ICON = { concluido: '✓', falhou: '✕' };
 // Celular e tablet: dias empilhados (mesmo ponto de quebra do CSS)
 const STACKED_QUERY = '(max-width: 839px)';
 const WEEK_PARAM = 'semana';
-
-function subscribeStacked(callback) {
-  const query = window.matchMedia(STACKED_QUERY);
-  query.addEventListener('change', callback);
-  return () => query.removeEventListener('change', callback);
-}
-
-function useStackedLayout() {
-  return useSyncExternalStore(
-    subscribeStacked,
-    () => window.matchMedia(STACKED_QUERY).matches,
-    () => false,
-  );
-}
 
 /** Segunda-feira da semana em `?semana=AAAA-MM-DD`, ou null se ausente/inválida. */
 function weekFromParam(value) {
@@ -54,7 +41,7 @@ export default function WeekCalendar() {
   const [searchParams, setSearchParams] = useSearchParams();
   const currentWeekStart = startOfWeek(todayInSaoPaulo());
   const weekStart = weekFromParam(searchParams.get(WEEK_PARAM)) ?? currentWeekStart;
-  const stacked = useStackedLayout();
+  const stacked = useMediaQuery(STACKED_QUERY);
   // Dias passados (semana atual, celular) que o usuário expandiu
   const [expandedDays, setExpandedDays] = useState(() => new Set());
   // Rola até o card de hoje só na primeira carga (navegar entre semanas não rola)
