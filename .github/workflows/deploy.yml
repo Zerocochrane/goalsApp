@@ -2,13 +2,13 @@
 # Baseado no workflow do repositório Site — roda no MESMO servidor, em pasta,
 # processos PM2 e portas próprios (API 4100 / frontend 4101), sem tocar no Site.
 #
+# Pasta do app no servidor: /home/ubuntu/goalsApp (definida em env.DEST abaixo).
+#
 # Segredos necessários (GitHub → Settings → Secrets and variables → Actions).
-# Podem ser os MESMOS valores do repositório Site, exceto OCI_PATH:
+# São os MESMOS valores do repositório Site:
 #   OCI_HOST        IP ou domínio do servidor
 #   OCI_USER        usuário SSH (ex.: ubuntu)
 #   OCI_SSH_KEY     chave PRIVADA de deploy (a mesma ~/.ssh/github_deploy do Site)
-#   OCI_PATH        pasta do Goals App no servidor (ex.: /home/ubuntu/goalsApp)
-#                   ⚠️ NUNCA a mesma pasta do Site — o rsync --delete apagaria o Site
 #   OCI_KNOWN_HOSTS (recomendado) linha "known_hosts" do servidor
 #   OCI_PORT        (opcional) porta SSH, padrão 22
 #
@@ -25,6 +25,10 @@ concurrency:
   group: deploy-goalsapp
   cancel-in-progress: false
 
+env:
+  # Pasta do Goals App no servidor — separada da pasta do Site
+  DEST: /home/ubuntu/goalsApp
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -38,16 +42,10 @@ jobs:
           KNOWN_HOSTS: ${{ secrets.OCI_KNOWN_HOSTS }}
           HOST: ${{ secrets.OCI_HOST }}
           PORT: ${{ secrets.OCI_PORT }}
-          DEST: ${{ secrets.OCI_PATH }}
         run: |
           set -euo pipefail
           [ -n "$SSH_KEY" ] || { echo "::error::Segredo OCI_SSH_KEY ausente (Settings → Secrets and variables → Actions)"; exit 1; }
           [ -n "$HOST" ] || { echo "::error::Segredo OCI_HOST ausente (Settings → Secrets and variables → Actions)"; exit 1; }
-          [ -n "$DEST" ] || { echo "::error::Segredo OCI_PATH ausente (Settings → Secrets and variables → Actions)"; exit 1; }
-          case "$DEST" in
-            */goalsApp|*/goalsApp/|*/goalsapp|*/goalsapp/) ;;
-            *) echo "::error::OCI_PATH ($DEST) deve terminar em /goalsApp para não sobrescrever o Site."; exit 1 ;;
-          esac
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
           if [ -n "$KNOWN_HOSTS" ]; then
@@ -62,7 +60,6 @@ jobs:
         env:
           HOST: ${{ secrets.OCI_HOST }}
           USER: ${{ secrets.OCI_USER }}
-          DEST: ${{ secrets.OCI_PATH }}
           PORT: ${{ secrets.OCI_PORT }}
         run: |
           set -euo pipefail
@@ -81,7 +78,6 @@ jobs:
         env:
           HOST: ${{ secrets.OCI_HOST }}
           USER: ${{ secrets.OCI_USER }}
-          DEST: ${{ secrets.OCI_PATH }}
           PORT: ${{ secrets.OCI_PORT }}
         run: |
           set -euo pipefail
