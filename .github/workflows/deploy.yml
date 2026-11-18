@@ -1,6 +1,6 @@
 # Publica o Goals App no servidor (Oracle Cloud) a cada push na branch main.
 # Baseado no workflow do repositório Site — roda no MESMO servidor, em pasta,
-# processos PM2 e portas próprios (API 4100 / frontend 4101), sem tocar no Site.
+# processo PM2 (goals-app) e porta (4101) próprios, sem tocar no Site.
 #
 # Pasta do app no servidor: /home/ubuntu/goalsApp (definida em env.DEST abaixo).
 #
@@ -13,7 +13,7 @@
 #   OCI_PORT        (opcional) porta SSH, padrão 22
 #
 # O que NÃO é enviado nem apagado no servidor: server/.env, banco SQLite,
-# sessão do WhatsApp (server/data/), logs e node_modules.
+# sessão do WhatsApp e backups (server/data/), logs e node_modules.
 name: Deploy
 
 on:

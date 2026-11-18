@@ -11,6 +11,7 @@
     "dev": "node --watch index.js",
     "start": "node index.js",
     "test": "node --test",
+    "backup": "node scripts/backup.js",
     "postinstall": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",

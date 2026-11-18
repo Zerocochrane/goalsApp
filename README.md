@@ -33,8 +33,8 @@ cp server/.env.example server/.env
 
 | Variável                | Para que serve                                                      |
 | ----------------------- | ------------------------------------------------------------------- |
-| `API_PORT` / `PORT`     | Porta da API (padrão 4100). `PORT`, se definida, tem prioridade.    |
-| `WEB_PORT`              | Porta do frontend (padrão 4101)                                     |
+| `API_PORT` / `PORT`     | Porta da API em dev (padrão 4100). `PORT`, se definida, prevalece.  |
+| `WEB_PORT`              | Porta do Vite em dev e do app em produção (padrão 4101)             |
 | `APP_URL`               | Endereço público do app (usado nos links enviados pelo WhatsApp)    |
 | `JWT_SECRET`            | Texto longo e aleatório para assinar o login — **troque**           |
 | `COOKIE_SECURE`         | `false` só se o app for servido em `http://` fora do localhost      |
@@ -44,19 +44,22 @@ cp server/.env.example server/.env
 | `WA_SESSION_DIR`        | Pasta da sessão do WhatsApp (padrão `data/wa-session`, fora do git) |
 | `WA_SEND_INTERVAL_MS`   | Intervalo mínimo entre envios no WhatsApp (padrão 3000)             |
 | `WA_DISABLED`           | `true` desliga o WhatsApp (ex.: em desenvolvimento)                 |
+| `BACKUP_DIR`            | Pasta dos backups diários do SQLite (padrão `data/backups`)         |
+| `BACKUP_KEEP_DAYS`      | Quantos dias de backup guardar (padrão 14)                          |
 | `TZ`                    | Fuso horário (`America/Sao_Paulo`)                                  |
 
 O `server/.env` nunca é versionado.
 
 ## Execução
 
-| Comando          | O que faz                                                            |
-| ---------------- | -------------------------------------------------------------------- |
-| `npm run dev`    | Sobe server (`node --watch`) e client (Vite) em paralelo             |
-| `npm run build`  | Gera o build de produção do frontend em `client/dist`                |
-| `npm start`      | Sobe server e client em modo produção (o client serve `client/dist`) |
-| `npm run lint`   | Roda o ESLint em todo o projeto (`lint:fix` corrige o que der)       |
-| `npm run format` | Formata tudo com o Prettier (`format:check` só verifica)             |
+| Comando          | O que faz                                                           |
+| ---------------- | ------------------------------------------------------------------- |
+| `npm run dev`    | Sobe server (`node --watch`) e client (Vite) em paralelo            |
+| `npm run build`  | Gera o build de produção do frontend em `client/dist`               |
+| `npm start`      | Sobe o server, que também serve o build (`client/dist`), se existir |
+| `npm run deploy` | Deploy no PM2 (veja [Deploy](#deploy))                              |
+| `npm run lint`   | Roda o ESLint em todo o projeto (`lint:fix` corrige o que der)      |
+| `npm run format` | Formata tudo com o Prettier (`format:check` só verifica)            |
 
 Em desenvolvimento, abra <http://localhost:4101>. O Vite encaminha `/api` para a API
 (<http://localhost:4100/api/health> responde `{"status":"ok"}`).
@@ -182,7 +185,64 @@ internos são aceitos no `redirect`.
 ## Deploy
 
 Cada push na `main` publica o app no servidor via GitHub Actions
-([`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)), que roda
-[`scripts/deploy-pm2.sh`](scripts/deploy-pm2.sh). No servidor, os processos `goals-api` e
-`goals-web` rodam no PM2 conforme [`ecosystem.config.cjs`](ecosystem.config.cjs) — sempre
-**1 instância em modo fork** (SQLite, agendador e sessão do WhatsApp não podem duplicar).
+([`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)), que envia o código e roda
+`npm run deploy` ([`scripts/deploy-pm2.sh`](scripts/deploy-pm2.sh)).
+
+### Como roda em produção
+
+- **Um único processo** no PM2, `goals-app` ([`ecosystem.config.cjs`](ecosystem.config.cjs)):
+  o Express serve a API (`/api`) e o build do React (`client/dist`), com fallback para
+  `index.html` nas rotas do React Router. Escuta em `WEB_PORT` (4101), só para o Nginx.
+- **1 instância em modo fork** — nunca cluster nem mais instâncias: o agendador e a sessão do
+  WhatsApp não podem duplicar.
+- `NODE_ENV=production`, `TZ=America/Sao_Paulo`. Logs em `logs/app-*.log`, com rotação diária
+  pelo `pm2-logrotate` (10 MB, 14 arquivos, compactados — instalado pelo deploy).
+- O que sobrevive a reinícios e deploys (fica em `server/data/`, que o deploy nunca apaga):
+  banco SQLite, sessão do WhatsApp (`wa-session/`, reconecta sem QR Code) e backups. No start,
+  o agendador recupera o que ficou para trás enquanto o app estava fora.
+
+### `npm run deploy`
+
+No servidor, na pasta do app (como o usuário do PM2, sem `sudo`):
+
+1. confere o `server/.env` e a porta; instala o `pm2-logrotate` se faltar;
+2. `npm install` do server; **backup** do banco; `prisma migrate deploy` (só para o app se
+   houver migração pendente, por causa do lock do SQLite);
+3. `npm install` + `vite build` do client;
+4. `pm2 startOrReload ecosystem.config.cjs` + `pm2 save`;
+5. espera `GET /api/health` e `/` responderem.
+
+Na primeira vez, ele também remove os processos antigos `goals-api`/`goals-web`.
+
+### Subir junto com o servidor (`pm2 startup`)
+
+Uma vez só, para o PM2 voltar (com o `goals-app`) depois de um reboot da máquina:
+
+```bash
+pm2 startup        # imprime um comando "sudo env PATH=… pm2 startup systemd -u …": rode-o
+npm run deploy     # sobe o app e roda "pm2 save" (lista salva = o que volta no boot)
+```
+
+Depois de mexer nos processos à mão, rode `pm2 save` de novo. Comandos úteis: `pm2 status`,
+`pm2 logs goals-app`, `pm2 reload goals-app`.
+
+### Nginx + HTTPS
+
+O app precisa de HTTPS: o link do WhatsApp usa `APP_URL` e o cookie de login é `secure` com
+`https://`. Exemplo de proxy reverso com Let's Encrypt (certbot), com o passo a passo nos
+comentários: [`deploy/nginx/goals.conf.example`](deploy/nginx/goals.conf.example). Depois, defina
+`APP_URL=https://seu.dominio` em `server/.env` e rode `npm run deploy`.
+
+### Backup do SQLite
+
+- Todo dia às 03:00 o próprio app grava `server/data/backups/goals-AAAA-MM-DD.db` (via
+  `VACUUM INTO`, seguro com o app rodando) e apaga os com mais de `BACKUP_KEEP_DAYS` dias.
+  O deploy também faz um antes das migrações. Manual: `npm run backup --prefix server`.
+- Os backups ficam no mesmo disco: copie-os para fora de vez em quando (ex.: `rsync`/`scp`).
+- Restaurar: `pm2 stop goals-app`, copie o backup sobre `server/data/goals.db` (apague
+  `goals.db-wal` e `goals.db-shm`), `pm2 start goals-app`.
+
+### Saúde
+
+`GET /api/health` (público) → `200 {"status":"ok","database":"ok","whatsapp":"open",…}`, ou `503`
+se o banco não responder. Usado pelo deploy; serve para monitoramento externo.

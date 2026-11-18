@@ -1,16 +1,18 @@
 #!/usr/bin/env bash
 # -----------------------------------------------------------------------------
-# deploy-pm2.sh — instala dependências, compila o frontend e (re)inicia o
-# Goals App no PM2. Pode ser rodado de novo a cada atualização do código.
-# Chamado automaticamente pelo GitHub Actions (.github/workflows/deploy.yml).
+# deploy-pm2.sh — instala dependências, aplica as migrações, compila o frontend e
+# recarrega o Goals App no PM2 (pm2 reload). Pode ser rodado de novo a cada
+# atualização do código. Chamado pelo GitHub Actions (.github/workflows/deploy.yml).
 #
-# Uso:   bash scripts/deploy-pm2.sh
+# Uso:   npm run deploy      (ou: bash scripts/deploy-pm2.sh)
 # Rode como o mesmo usuário (sem sudo) que roda o PM2 do Site.
-# Só mexe nos processos goals-api e goals-web — o Site não é afetado.
+# Só mexe no processo goals-app — o Site não é afetado.
 # -----------------------------------------------------------------------------
 set -euo pipefail
 
-APPS="goals-api goals-web"
+APP="goals-app"
+# Processos da versão antiga (API e frontend separados), removidos na migração
+LEGACY_APPS="goals-api goals-web"
 
 info()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 ok()    { printf '\033[1;32m✔\033[0m  %s\n' "$*"; }
@@ -53,25 +55,32 @@ env_get() { grep -E "^$1=" server/.env | tail -n1 | cut -d= -f2- | sed -E 's/^"(
 case "$(env_get JWT_SECRET)" in
   ""|replace-with-a-long-random-string) fail "Defina JWT_SECRET em server/.env." ;;
 esac
-API_PORT="$(env_get API_PORT)"; API_PORT="${API_PORT:-4100}"
 WEB_PORT="$(env_get WEB_PORT)"; WEB_PORT="${WEB_PORT:-4101}"
-[ "$API_PORT" != "$WEB_PORT" ] || fail "API_PORT e WEB_PORT precisam ser diferentes."
 
 # Garante que as portas não estão ocupadas por outro processo (ex.: o Site)
 port_owner() { ss -ltnpH "( sport = :$1 )" 2>/dev/null | grep -o 'pid=[0-9]*' | head -n1 | cut -d= -f2; }
-for P in "$API_PORT" "$WEB_PORT"; do
-  PID="$(port_owner "$P" || true)"
-  if [ -n "$PID" ]; then
-    NAME="$(pm2 jlist 2>/dev/null | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{const a=JSON.parse(d).find(x=>x.pid==$PID);console.log(a?a.name:'')}catch{console.log('')}})" || true)"
-    case " $APPS " in
-      *" $NAME "*) ;;  # é o próprio Goals App (reinício)
-      *) fail "A porta $P já está em uso por outro processo (pid $PID${NAME:+, pm2: $NAME}). Escolha outra em server/.env." ;;
-    esac
-  fi
-done
-ok "Configuração ok (API na porta $API_PORT, frontend na porta $WEB_PORT)"
+PID="$(port_owner "$WEB_PORT" || true)"
+if [ -n "$PID" ]; then
+  NAME="$(pm2 jlist 2>/dev/null | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{const a=JSON.parse(d).find(x=>x.pid==$PID);console.log(a?a.name:'')}catch{console.log('')}})" || true)"
+  case " $APP $LEGACY_APPS " in
+    *" $NAME "*) ;;  # é o próprio Goals App (reinício)
+    *) fail "A porta $WEB_PORT já está em uso por outro processo (pid $PID${NAME:+, pm2: $NAME}). Escolha outra WEB_PORT em server/.env." ;;
+  esac
+fi
+ok "Configuração ok (app na porta $WEB_PORT)"
 
-mkdir -p server/data logs
+mkdir -p server/data server/data/backups logs
+
+# Rotação dos logs do PM2 (módulo global do PM2; vale também para os logs do Site)
+if ! pm2 describe pm2-logrotate >/dev/null 2>&1; then
+  info "Instalando pm2-logrotate…"
+  pm2 install pm2-logrotate >/dev/null
+  pm2 set pm2-logrotate:max_size 10M >/dev/null
+  pm2 set pm2-logrotate:retain 14 >/dev/null
+  pm2 set pm2-logrotate:compress true >/dev/null
+  pm2 set pm2-logrotate:rotateInterval '0 0 * * *' >/dev/null
+fi
+ok "Rotação de logs ativa (pm2-logrotate)"
 
 # 2. Dependências, banco e build ----------------------------------------------
 info "Instalando dependências do servidor…"
@@ -79,11 +88,20 @@ npm install --prefix server --omit=dev --no-audit --no-fund
 if [ -f server/prisma/schema.prisma ]; then
   info "Aplicando migrações do banco…"
   (cd server && npx --no-install prisma generate)
-  # O goals-api em execução mantém o SQLite aberto e o "prisma migrate" falha com
-  # "database is locked". Para o processo antes de migrar; o PM2 o sobe de novo abaixo.
-  if pm2 describe goals-api >/dev/null 2>&1; then
-    info "Parando goals-api para aplicar as migrações…"
-    pm2 stop goals-api >/dev/null
+  # Backup antes de mexer no banco
+  if [ -f server/data/goals.db ]; then
+    (cd server && node scripts/backup.js) || warn "Backup antes do deploy falhou (seguindo assim mesmo)."
+  fi
+  # O app em execução mantém o SQLite aberto e o "prisma migrate" pode falhar com
+  # "database is locked". Só se houver migração pendente, para o processo antes de
+  # migrar (o PM2 o sobe de novo abaixo); sem migração, o reload não tem parada.
+  if ! (cd server && npx --no-install prisma migrate status >/dev/null 2>&1); then
+    for P in $APP $LEGACY_APPS; do
+      if pm2 describe "$P" >/dev/null 2>&1; then
+        info "Parando $P para aplicar as migrações…"
+        pm2 stop "$P" >/dev/null
+      fi
+    done
   fi
   for i in 1 2 3 4 5; do
     (cd server && npx --no-install prisma migrate deploy) && break
@@ -101,24 +119,29 @@ npm run build --prefix client
 ok "Frontend compilado (client/dist)"
 
 # 3. Iniciar / recarregar no PM2 ---------------------------------------------
-info "Iniciando $APPS no PM2…"
+# Versão antiga (goals-api + goals-web): remove antes, para liberar a porta
+for P in $LEGACY_APPS; do
+  if pm2 describe "$P" >/dev/null 2>&1; then
+    info "Removendo processo antigo $P (agora tudo roda em $APP)…"
+    pm2 delete "$P" >/dev/null
+  fi
+done
+info "Recarregando $APP no PM2…"
 pm2 startOrReload ecosystem.config.cjs --update-env
 pm2 save >/dev/null
-ok "Lista de processos do PM2 salva (sobrevive a reinícios)"
+ok "Lista de processos do PM2 salva (sobrevive a reinícios — veja 'pm2 startup' no README)"
 
 # 4. Verificação ---------------------------------------------------------------
 info "Verificando se o app responde…"
 for i in $(seq 1 20); do
-  if curl -fsS "http://127.0.0.1:${API_PORT}/api/health" >/dev/null 2>&1 \
-     && curl -fsS "http://127.0.0.1:${WEB_PORT}/" >/dev/null 2>&1; then
+  if curl -fsS "http://127.0.0.1:${WEB_PORT}/api/health" >/dev/null 2>&1      && curl -fsS "http://127.0.0.1:${WEB_PORT}/" >/dev/null 2>&1; then
     echo
-    ok "Goals App no ar: frontend http://127.0.0.1:${WEB_PORT}  ·  API http://127.0.0.1:${API_PORT}"
-    echo "   Logs:      pm2 logs goals-api   |   pm2 logs goals-web"
+    ok "Goals App no ar: http://127.0.0.1:${WEB_PORT}  (saúde: /api/health)"
+    echo "   Logs:      pm2 logs $APP"
     echo "   Status:    pm2 status"
     exit 0
   fi
   sleep 1
 done
-pm2 logs goals-api --lines 30 --nostream || true
-pm2 logs goals-web --lines 30 --nostream || true
-fail "O app não respondeu nas portas $API_PORT/$WEB_PORT. Veja os logs acima."
+pm2 logs "$APP" --lines 30 --nostream || true
+fail "O app não respondeu na porta $WEB_PORT. Veja os logs acima."

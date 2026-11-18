@@ -1,5 +1,10 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import express from 'express';
 import cookieParser from 'cookie-parser';
+import { prisma } from './db/prisma.js';
+import { getWhatsAppStatus } from './whatsapp/whatsapp.js';
 import { authRouter } from './auth/routes.js';
 import { requireAuth } from './auth/middleware.js';
 import { profileRouter, usersRouter } from './users/routes.js';
@@ -9,19 +14,40 @@ import { whatsappRouter } from './whatsapp/routes.js';
 import { occurrencesRouter } from './occurrences/routes.js';
 import { streakRouter } from './streak/routes.js';
 
-export function createApp() {
+// Build do React (gerado por `npm run build`). Pode ser trocado com CLIENT_DIST.
+const DEFAULT_CLIENT_DIST = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '../../client/dist',
+);
+
+export function createApp({ clientDist = process.env.CLIENT_DIST || DEFAULT_CLIENT_DIST } = {}) {
   const app = express();
 
   app.disable('x-powered-by');
-  // A API fica atrás do goals-web (e talvez de um nginx), todos na mesma máquina:
+  // Em produção o app fica atrás do Nginx, na mesma máquina:
   // confia em proxies locais para obter o IP real do cliente (usado no rate limit).
   app.set('trust proxy', process.env.TRUST_PROXY || 'loopback');
   app.use(express.json());
   app.use(cookieParser());
 
   // Rotas públicas
-  app.get('/api/health', (_req, res) => {
-    res.json({ status: 'ok', time: new Date().toISOString(), tz: process.env.TZ });
+  // Saúde do app (PM2/deploy/monitoramento): 200 se o banco responde, 503 se não.
+  app.get('/api/health', async (_req, res) => {
+    let database = 'ok';
+    try {
+      await prisma.$queryRawUnsafe('SELECT 1');
+    } catch {
+      database = 'error';
+    }
+    const ok = database === 'ok';
+    res.status(ok ? 200 : 503).json({
+      status: ok ? 'ok' : 'error',
+      time: new Date().toISOString(),
+      tz: process.env.TZ,
+      uptime: Math.round(process.uptime()),
+      database,
+      whatsapp: getWhatsAppStatus().status,
+    });
   });
   app.use('/api/auth', authRouter());
 
@@ -39,6 +65,23 @@ export function createApp() {
   app.use('/api', (_req, res) => {
     res.status(404).json({ error: 'Rota não encontrada' });
   });
+
+  // Frontend: serve o build do React e, para as rotas do React Router (ex.: /validar/:token),
+  // devolve o index.html. Em desenvolvimento (sem build) quem serve o frontend é o Vite.
+  const indexHtml = path.join(clientDist, 'index.html');
+  if (fs.existsSync(indexHtml)) {
+    // Arquivos em assets/ têm hash no nome: podem ficar em cache "para sempre" (e um que
+    // não existe é 404, não o index.html)
+    app.use(
+      '/assets',
+      express.static(path.join(clientDist, 'assets'), { immutable: true, maxAge: '1y' }),
+    );
+    app.use('/assets', (_req, res) => res.status(404).end());
+    app.use(express.static(clientDist, { index: false, maxAge: 0 }));
+    app.get('/{*path}', (_req, res) => {
+      res.set('cache-control', 'no-cache').sendFile('index.html', { root: clientDist });
+    });
+  }
 
   // Erros inesperados (Express 5 encaminha também erros de handlers async)
   app.use((err, _req, res, _next) => {
