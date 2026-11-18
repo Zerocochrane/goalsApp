@@ -206,8 +206,8 @@ Cada push na `main` publica o app no servidor via GitHub Actions
 No servidor, na pasta do app (como o usuário do PM2, sem `sudo`):
 
 1. confere o `server/.env` e a porta; instala o `pm2-logrotate` se faltar;
-2. `npm install` do server; **backup** do banco; `prisma migrate deploy` (só para o app se
-   houver migração pendente, por causa do lock do SQLite);
+2. `npm install` do server; **backup** do banco; para o app (o `prisma migrate deploy` precisa
+   do SQLite sem uso) e aplica as migrações;
 3. `npm install` + `vite build` do client;
 4. `pm2 startOrReload ecosystem.config.cjs` + `pm2 save`;
 5. espera `GET /api/health` e `/` responderem.

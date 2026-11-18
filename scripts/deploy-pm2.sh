@@ -92,17 +92,15 @@ if [ -f server/prisma/schema.prisma ]; then
   if [ -f server/data/goals.db ]; then
     (cd server && node scripts/backup.js) || warn "Backup antes do deploy falhou (seguindo assim mesmo)."
   fi
-  # O app em execução mantém o SQLite aberto e o "prisma migrate" pode falhar com
-  # "database is locked". Só se houver migração pendente, para o processo antes de
-  # migrar (o PM2 o sobe de novo abaixo); sem migração, o reload não tem parada.
-  if ! (cd server && npx --no-install prisma migrate status >/dev/null 2>&1); then
-    for P in $APP $LEGACY_APPS; do
-      if pm2 describe "$P" >/dev/null 2>&1; then
-        info "Parando $P para aplicar as migrações…"
-        pm2 stop "$P" >/dev/null
-      fi
-    done
-  fi
+  # O app em execução mantém o SQLite aberto e o "prisma migrate deploy" falha com
+  # "database is locked" — mesmo sem migração pendente. Para o processo antes de migrar;
+  # o PM2 o sobe de novo abaixo (parada de poucos segundos).
+  for P in $APP $LEGACY_APPS; do
+    if pm2 describe "$P" >/dev/null 2>&1; then
+      info "Parando $P para aplicar as migrações…"
+      pm2 stop "$P" >/dev/null
+    fi
+  done
   for i in 1 2 3 4 5; do
     (cd server && npx --no-install prisma migrate deploy) && break
     [ "$i" -eq 5 ] && fail "Não foi possível aplicar as migrações (banco bloqueado?). Veja: fuser -v server/data/goals.db"
