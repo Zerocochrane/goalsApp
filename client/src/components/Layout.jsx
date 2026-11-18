@@ -50,6 +50,11 @@ export default function Layout() {
             {t.nav.users}
           </NavLink>
         )}
+        {user.isMaster && (
+          <NavLink to="/whatsapp" className="app-nav-link">
+            {t.nav.whatsapp}
+          </NavLink>
+        )}
         <NavLink to="/perfil" className="app-nav-link">
           {t.nav.profile}
         </NavLink>

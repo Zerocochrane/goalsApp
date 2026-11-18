@@ -5,6 +5,7 @@ import { requireAuth } from './auth/middleware.js';
 import { profileRouter, usersRouter } from './users/routes.js';
 import { activitiesRouter } from './activities/routes.js';
 import { calendarRouter } from './activities/calendar.js';
+import { whatsappRouter } from './whatsapp/routes.js';
 
 export function createApp() {
   const app = express();
@@ -29,6 +30,7 @@ export function createApp() {
   app.use('/api/profile', profileRouter());
   app.use('/api/activities', activitiesRouter()); // sempre do próprio usuário
   app.use('/api/calendar', calendarRouter());
+  app.use('/api/whatsapp', whatsappRouter()); // somente admin master
 
   app.use('/api', (_req, res) => {
     res.status(404).json({ error: 'Rota não encontrada' });

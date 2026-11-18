@@ -15,6 +15,7 @@ const ptBR = {
   nav: {
     home: 'Início',
     users: 'Usuários',
+    whatsapp: 'WhatsApp',
     profile: 'Meu perfil',
   },
   users: {
@@ -137,6 +138,50 @@ const ptBR = {
       `A atividade ${name} deixará de aparecer a partir de hoje. Os dias passados continuam no histórico.`,
     confirmYes: 'Excluir',
     confirmBusy: 'Excluindo…',
+  },
+  whatsapp: {
+    title: 'WhatsApp',
+    subtitle:
+      'Número que envia os lembretes. Pareie uma vez; reinícios do servidor reconectam sozinhos.',
+    unofficialWarning:
+      'Atenção: a conexão usa uma biblioteca não oficial. Use um número dedicado, pois o WhatsApp pode bloqueá-lo.',
+    connectionTitle: 'Conexão',
+    status: {
+      disconnected: 'Desconectado',
+      connecting: 'Conectando…',
+      qr: 'Aguardando leitura do QR Code',
+      open: 'Conectado',
+      reconnecting: 'Conexão caiu — tentando reconectar…',
+    },
+    connectedAs: (phone) => `Número conectado: ${phone}`,
+    since: (when) => `desde ${when}`,
+    queue: (n) => (n === 1 ? '1 mensagem na fila' : `${n} mensagens na fila`),
+    qrAlt: 'QR Code para parear o WhatsApp',
+    qrSteps: [
+      'Abra o WhatsApp no celular do número dedicado.',
+      'Toque em Mais opções (⋮) ou Configurações › Dispositivos conectados.',
+      'Toque em Conectar um dispositivo e aponte a câmera para este QR Code.',
+    ],
+    connect: 'Conectar',
+    logout: 'Desconectar',
+    loggedOut: 'WhatsApp desconectado.',
+    logoutTitle: 'Desconectar o WhatsApp?',
+    logoutText:
+      'A sessão será apagada e os lembretes deixam de ser enviados até que um número seja pareado de novo.',
+    logoutYes: 'Desconectar',
+    logoutBusy: 'Desconectando…',
+    testTitle: 'Mensagem de teste',
+    testNeedsConnection: 'Conecte o WhatsApp para enviar uma mensagem de teste.',
+    testPhone: 'Enviar para',
+    testPhoneHint: 'Formato brasileiro com DDI 55, ex.: +55 (32) 99999-9999.',
+    testText: 'Mensagem',
+    testDefaultText: 'Mensagem de teste do Goals App ✅',
+    testSend: 'Enviar teste',
+    testSending: 'Enviando…',
+    testSent: 'Mensagem de teste enviada.',
+    logsTitle: 'Últimos envios',
+    logsEmpty: 'Nenhuma mensagem enviada ainda.',
+    logStatus: { enviada: 'Enviada', falhou: 'Falhou' },
   },
   notFound: {
     title: 'Página não encontrada',

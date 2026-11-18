@@ -69,3 +69,20 @@ model TaskOccurrence {
   @@index([userId, date])
   @@index([status, scheduledAt])
 }
+
+enum MessageStatus {
+  enviada
+  falhou
+}
+
+// Log de envios do WhatsApp (sucesso ou falha)
+model MessageLog {
+  id        Int           @id @default(autoincrement())
+  phone     String // E.164 (+5532999999999)
+  text      String
+  status    MessageStatus
+  error     String?
+  createdAt DateTime      @default(now())
+
+  @@index([createdAt])
+}

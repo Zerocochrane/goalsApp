@@ -31,17 +31,20 @@ Crie o arquivo de configuração do backend a partir do exemplo e ajuste os valo
 cp server/.env.example server/.env
 ```
 
-| Variável                | Para que serve                                                   |
-| ----------------------- | ---------------------------------------------------------------- |
-| `API_PORT` / `PORT`     | Porta da API (padrão 4100). `PORT`, se definida, tem prioridade. |
-| `WEB_PORT`              | Porta do frontend (padrão 4101)                                  |
-| `APP_URL`               | Endereço público do app (usado nos links enviados pelo WhatsApp) |
-| `JWT_SECRET`            | Texto longo e aleatório para assinar o login — **troque**        |
-| `COOKIE_SECURE`         | `false` só se o app for servido em `http://` fora do localhost   |
-| `DATABASE_URL`          | Caminho do banco SQLite (`file:./data/goals.db`)                 |
-| `MASTER_ADMIN_USER`     | Usuário do admin master criado no primeiro start                 |
-| `MASTER_ADMIN_PASSWORD` | Senha do admin master — **troque**                               |
-| `TZ`                    | Fuso horário (`America/Sao_Paulo`)                               |
+| Variável                | Para que serve                                                      |
+| ----------------------- | ------------------------------------------------------------------- |
+| `API_PORT` / `PORT`     | Porta da API (padrão 4100). `PORT`, se definida, tem prioridade.    |
+| `WEB_PORT`              | Porta do frontend (padrão 4101)                                     |
+| `APP_URL`               | Endereço público do app (usado nos links enviados pelo WhatsApp)    |
+| `JWT_SECRET`            | Texto longo e aleatório para assinar o login — **troque**           |
+| `COOKIE_SECURE`         | `false` só se o app for servido em `http://` fora do localhost      |
+| `DATABASE_URL`          | Caminho do banco SQLite (`file:./data/goals.db`)                    |
+| `MASTER_ADMIN_USER`     | Usuário do admin master criado no primeiro start                    |
+| `MASTER_ADMIN_PASSWORD` | Senha do admin master — **troque**                                  |
+| `WA_SESSION_DIR`        | Pasta da sessão do WhatsApp (padrão `data/wa-session`, fora do git) |
+| `WA_SEND_INTERVAL_MS`   | Intervalo mínimo entre envios no WhatsApp (padrão 3000)             |
+| `WA_DISABLED`           | `true` desliga o WhatsApp (ex.: em desenvolvimento)                 |
+| `TZ`                    | Fuso horário (`America/Sao_Paulo`)                                  |
 
 O `server/.env` nunca é versionado.
 
@@ -121,6 +124,25 @@ Cada usuário só vê e altera as próprias atividades (de outro usuário → `4
 - Datas são AAAA-MM-DD em `America/Sao_Paulo` — lógica em
   [`server/src/activities/recurrence.js`](server/src/activities/recurrence.js), testada com
   `npm test --prefix server` (`node --test`).
+
+## WhatsApp (Baileys)
+
+> ⚠ Baileys é uma biblioteca **não oficial**: use um **número dedicado** — há risco de bloqueio.
+
+- Serviço em [`server/src/whatsapp/whatsapp.js`](server/src/whatsapp/whatsapp.js):
+  `sendMessage(phone, text)` (E.164) entra numa fila, envia um por vez com intervalo mínimo de
+  `WA_SEND_INTERVAL_MS` e grava cada envio/falha na tabela `MessageLog` (e no log do PM2).
+- **Parear:** página **WhatsApp** (só master) → **Conectar** → ler o QR Code em
+  _Dispositivos conectados_ no celular. A sessão fica em `server/data/wa-session` (o deploy não
+  apaga), então reinícios do PM2 reconectam sem novo QR Code. Se a conexão cair, reconecta
+  sozinho (espera crescente até 1 min). Se o QR Code expirar sem leitura, basta clicar em
+  **Conectar** de novo.
+- **Desconectar** na página (ou encerrar a sessão no celular) apaga a sessão; é preciso parear
+  de novo.
+- API (só master): `GET /api/whatsapp` (status, QR, últimos envios), `POST /api/whatsapp/connect`,
+  `POST /api/whatsapp/logout`, `POST /api/whatsapp/test` `{ phone, text }`.
+- Não rode o mesmo número em dois servidores ao mesmo tempo (ex.: dev e produção): use
+  `WA_DISABLED=true` no ambiente que não deve conectar.
 
 ## Frontend
 

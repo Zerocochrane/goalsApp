@@ -796,3 +796,114 @@ a:hover {
 .activity-remove {
   margin-right: auto;
 }
+
+/* ---------- WhatsApp ---------- */
+
+.wa-card {
+  margin-bottom: var(--space-6);
+}
+
+.wa-warning {
+  padding: var(--space-3) var(--space-4);
+  border-left: 4px solid var(--color-warning);
+  background: var(--color-surface-muted);
+  border-radius: var(--radius);
+  color: var(--color-text);
+}
+
+.wa-status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 600;
+}
+
+.wa-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.wa-dot-open {
+  background: var(--color-success);
+}
+
+.wa-dot-connecting,
+.wa-dot-qr,
+.wa-dot-reconnecting {
+  background: var(--color-warning);
+}
+
+.wa-qr {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-6);
+  margin: var(--space-4) 0;
+}
+
+.wa-qr img {
+  max-width: 100%;
+  height: auto;
+  background: #fff;
+  padding: var(--space-2);
+  border-radius: var(--radius);
+}
+
+.wa-steps {
+  margin: 0;
+  padding-left: var(--space-6);
+  max-width: 360px;
+}
+
+.wa-textarea {
+  resize: vertical;
+  font: inherit;
+}
+
+.wa-logs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.wa-log {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.wa-log:first-child {
+  border-top: 0;
+}
+
+.wa-log .badge {
+  margin-left: 0;
+}
+
+.wa-log-meta {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.wa-log-text {
+  flex-basis: 100%;
+  overflow-wrap: anywhere;
+}
+
+.wa-badge-ok {
+  background: var(--color-success);
+  color: var(--color-on-primary);
+}
+
+.wa-badge-fail {
+  background: var(--color-danger);
+  color: var(--color-on-primary);
+}

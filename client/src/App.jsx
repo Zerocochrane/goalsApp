@@ -8,6 +8,7 @@ import HomePage from './pages/HomePage.jsx';
 import NotFoundPage from './pages/NotFoundPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
 import UsersPage from './pages/UsersPage.jsx';
+import WhatsAppPage from './pages/WhatsAppPage.jsx';
 
 export default function App() {
   return (
@@ -21,6 +22,7 @@ export default function App() {
               <Route path="perfil" element={<ProfilePage />} />
               <Route element={<RequireMaster />}>
                 <Route path="usuarios" element={<UsersPage />} />
+                <Route path="whatsapp" element={<WhatsAppPage />} />
               </Route>
               <Route path="*" element={<NotFoundPage />} />
             </Route>
