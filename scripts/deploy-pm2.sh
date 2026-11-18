@@ -78,7 +78,19 @@ info "Instalando dependências do servidor…"
 npm install --prefix server --omit=dev --no-audit --no-fund
 if [ -f server/prisma/schema.prisma ]; then
   info "Aplicando migrações do banco…"
-  (cd server && npx --no-install prisma generate && npx --no-install prisma migrate deploy)
+  (cd server && npx --no-install prisma generate)
+  # O goals-api em execução mantém o SQLite aberto e o "prisma migrate" falha com
+  # "database is locked". Para o processo antes de migrar; o PM2 o sobe de novo abaixo.
+  if pm2 describe goals-api >/dev/null 2>&1; then
+    info "Parando goals-api para aplicar as migrações…"
+    pm2 stop goals-api >/dev/null
+  fi
+  for i in 1 2 3 4 5; do
+    (cd server && npx --no-install prisma migrate deploy) && break
+    [ "$i" -eq 5 ] && fail "Não foi possível aplicar as migrações (banco bloqueado?). Veja: fuser -v server/data/goals.db"
+    warn "Banco ocupado — nova tentativa em 3s ($i/5)…"
+    sleep 3
+  done
 fi
 ok "Servidor pronto (Node $(node -v))"
 
