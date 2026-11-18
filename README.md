@@ -57,6 +57,19 @@ O `server/.env` nunca é versionado.
 Em desenvolvimento, abra <http://localhost:4101>. O Vite encaminha `/api` para a API
 (<http://localhost:4100/api/health> responde `{"status":"ok"}`).
 
+## Banco de dados
+
+SQLite com Prisma 7 (driver `better-sqlite3`). O schema fica em
+[`server/prisma/schema.prisma`](server/prisma/schema.prisma) e o cliente é um singleton em
+[`server/src/db/prisma.js`](server/src/db/prisma.js), que liga o modo WAL ao iniciar o servidor.
+
+| Comando (em `server/`) | O que faz                                                     |
+| ---------------------- | ------------------------------------------------------------- |
+| `npm run db:migrate`   | `prisma migrate dev` — cria o banco do zero / nova migration  |
+| `npm run db:deploy`    | `prisma migrate deploy` — aplica migrations (usado no deploy) |
+| `npm run db:generate`  | Regera o Prisma Client (roda sozinho no `npm install`)        |
+| `npm run db:studio`    | Abre o Prisma Studio para ver os dados                        |
+
 ## Deploy
 
 Cada push na `main` publica o app no servidor via GitHub Actions
