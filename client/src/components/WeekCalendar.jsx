@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
+import { useSearchParams } from 'react-router';
 import ActivityDialog from './ActivityDialog.jsx';
 import { api } from '../lib/api.js';
 import {
@@ -20,9 +21,45 @@ const POLL_INTERVAL_MS = 60_000;
 const STATUS_ICON = { concluida: '✓', falhou: '✕', pendente: '○' };
 const DAY_STATUS_ICON = { concluido: '✓', falhou: '✕' };
 
+// Celular e tablet: dias empilhados (mesmo ponto de quebra do CSS)
+const STACKED_QUERY = '(max-width: 839px)';
+const WEEK_PARAM = 'semana';
+
+function subscribeStacked(callback) {
+  const query = window.matchMedia(STACKED_QUERY);
+  query.addEventListener('change', callback);
+  return () => query.removeEventListener('change', callback);
+}
+
+function useStackedLayout() {
+  return useSyncExternalStore(
+    subscribeStacked,
+    () => window.matchMedia(STACKED_QUERY).matches,
+    () => false,
+  );
+}
+
+/** Segunda-feira da semana em `?semana=AAAA-MM-DD`, ou null se ausente/inválida. */
+function weekFromParam(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value ?? '')) return null;
+  // Rejeita datas impossíveis (ex.: 2026-02-31), que o Date "corrigiria"
+  if (addDays(value, 0) !== value) return null;
+  return startOfWeek(value);
+}
+
 /** Calendário da semana (segunda a domingo), consumindo GET /api/calendar. */
 export default function WeekCalendar() {
-  const [weekStart, setWeekStart] = useState(() => startOfWeek(todayInSaoPaulo()));
+  // Semana na URL (?semana=…) para o botão voltar e links funcionarem; sem o
+  // parâmetro, a semana atual
+  const [searchParams, setSearchParams] = useSearchParams();
+  const currentWeekStart = startOfWeek(todayInSaoPaulo());
+  const weekStart = weekFromParam(searchParams.get(WEEK_PARAM)) ?? currentWeekStart;
+  const stacked = useStackedLayout();
+  // Dias passados (semana atual, celular) que o usuário expandiu
+  const [expandedDays, setExpandedDays] = useState(() => new Set());
+  // Rola até o card de hoje só na primeira carga (navegar entre semanas não rola)
+  const autoScrollRef = useRef(true);
+  const toolbarRef = useRef(null);
   const [reloadKey, setReloadKey] = useState(0);
   // { key, weekStart, days } da última resposta; `key` identifica a semana/recarga que a gerou
   const [result, setResult] = useState(null);
@@ -40,7 +77,6 @@ export default function WeekCalendar() {
 
   const weekEnd = addDays(weekStart, 6);
   const requestKey = `${weekStart}|${reloadKey}`;
-  const currentWeekStart = startOfWeek(todayInSaoPaulo());
 
   useEffect(() => {
     let ignore = false;
@@ -87,6 +123,30 @@ export default function WeekCalendar() {
   const refreshing = result?.key !== requestKey && !loadError;
   const loading = days === null && refreshing;
 
+  // Celular: ao abrir o app na semana atual, rola até o card de hoje se ele não
+  // estiver inteiro na tela (descontando o cabeçalho e a barra da semana fixos)
+  useEffect(() => {
+    if (!autoScrollRef.current || days === null) return;
+    autoScrollRef.current = false;
+    if (!stacked || weekStart !== currentWeekStart) return;
+    const card = document.querySelector('.week-day[aria-current="date"]');
+    if (!card) return;
+    const toolbarHeight = toolbarRef.current?.offsetHeight ?? 0;
+    card.style.setProperty('--week-toolbar-height', `${toolbarHeight}px`);
+    if (card.getBoundingClientRect().bottom <= window.innerHeight) return;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    card.scrollIntoView({ block: 'start', behavior: reduceMotion ? 'auto' : 'smooth' });
+  }, [days, stacked, weekStart, currentWeekStart]);
+
+  function toggleDay(date) {
+    setExpandedDays((current) => {
+      const next = new Set(current);
+      if (next.has(date)) next.delete(date);
+      else next.add(date);
+      return next;
+    });
+  }
+
   function openDialog(event, state) {
     openerRef.current = event.currentTarget;
     setNotice('');
@@ -127,12 +187,17 @@ export default function WeekCalendar() {
 
   function goToWeek(next) {
     setNotice('');
-    setWeekStart(next);
+    setSearchParams((params) => {
+      const updated = new URLSearchParams(params);
+      if (next === currentWeekStart) updated.delete(WEEK_PARAM);
+      else updated.set(WEEK_PARAM, next);
+      return updated;
+    });
   }
 
   return (
     <section className="week-calendar" aria-labelledby="week-calendar-title">
-      <div className="week-toolbar">
+      <div className="week-toolbar" ref={toolbarRef}>
         <h2
           id="week-calendar-title"
           ref={titleRef}
@@ -172,6 +237,17 @@ export default function WeekCalendar() {
         </div>
       </div>
 
+      <ul className="status-legend" aria-label={t.calendar.legendLabel}>
+        {['concluida', 'falhou', 'pendente'].map((status) => (
+          <li key={status}>
+            <span className={`status-swatch status-swatch-${status}`} aria-hidden="true">
+              {STATUS_ICON[status]}
+            </span>
+            {t.calendar.legend[status]}
+          </li>
+        ))}
+      </ul>
+
       <p className="notice week-notice" role="status" aria-live="polite">
         {notice}
       </p>
@@ -194,29 +270,25 @@ export default function WeekCalendar() {
         </div>
       ) : (
         <ol className="week-grid" aria-label={t.calendar.daysLabel} aria-busy={refreshing}>
-          {days.map((day) => (
-            <DayColumn
-              key={day.date}
-              day={day}
-              onCreate={(event) => openDialog(event, { date: day.date })}
-              onEdit={(event, item) =>
-                openDialog(event, { date: day.date, activityId: item.activityId })
-              }
-            />
-          ))}
+          {days.map((day) => {
+            const collapsible =
+              stacked && weekStart === currentWeekStart && day.isPast && !day.isToday;
+            return (
+              <DayColumn
+                key={day.date}
+                day={day}
+                collapsible={collapsible}
+                expanded={!collapsible || expandedDays.has(day.date)}
+                onToggle={() => toggleDay(day.date)}
+                onCreate={(event) => openDialog(event, { date: day.date })}
+                onEdit={(event, item) =>
+                  openDialog(event, { date: day.date, activityId: item.activityId })
+                }
+              />
+            );
+          })}
         </ol>
       )}
-
-      <ul className="status-legend" aria-label={t.calendar.legendLabel}>
-        {['concluida', 'falhou', 'pendente'].map((status) => (
-          <li key={status}>
-            <span className={`status-swatch status-swatch-${status}`} aria-hidden="true">
-              {STATUS_ICON[status]}
-            </span>
-            {t.calendar.legend[status]}
-          </li>
-        ))}
-      </ul>
 
       {dialog && (
         <ActivityDialog
@@ -231,8 +303,10 @@ export default function WeekCalendar() {
   );
 }
 
-function DayColumn({ day, onCreate, onEdit }) {
+function DayColumn({ day, collapsible, expanded, onToggle, onCreate, onEdit }) {
+  const bodyId = useId();
   const classes = ['week-day', 'card'];
+  if (!expanded) classes.push('week-day-collapsed');
   if (day.isToday) classes.push('week-day-today');
   if (day.isPast) classes.push('week-day-past');
   else classes.push('week-day-open');
@@ -244,6 +318,24 @@ function DayColumn({ day, onCreate, onEdit }) {
     event.currentTarget.querySelector('[data-add-date]')?.click();
   }
 
+  const headerContent = (
+    <>
+      {/* Celular: "Segunda, 16 de nov." numa linha; desktop: nome em cima, data embaixo */}
+      <span className="week-day-full">{formatWeekdayDayMonth(day.date)}</span>
+      <span className="week-day-split" aria-hidden="true">
+        <span className="week-day-name">{weekdayName(day.date)}</span>
+        <span className="week-day-date">{formatDayMonth(day.date)}</span>
+      </span>
+      {day.isToday && <span className="badge week-day-badge">{t.calendar.todayBadge}</span>}
+      {DAY_STATUS_ICON[day.status] && (
+        <span className={`badge day-status day-status-${day.status}`}>
+          <span aria-hidden="true">{DAY_STATUS_ICON[day.status]}</span>
+          {t.calendar.dayStatus[day.status]}
+        </span>
+      )}
+    </>
+  );
+
   return (
     <li
       className={classes.join(' ')}
@@ -252,53 +344,57 @@ function DayColumn({ day, onCreate, onEdit }) {
       onClick={handleDayClick}
     >
       <h3 className="week-day-header">
-        {/* Celular: "Segunda, 16 de nov." numa linha; desktop: nome em cima, data embaixo */}
-        <span className="week-day-full">{formatWeekdayDayMonth(day.date)}</span>
-        <span className="week-day-split" aria-hidden="true">
-          <span className="week-day-name">{weekdayName(day.date)}</span>
-          <span className="week-day-date">{formatDayMonth(day.date)}</span>
-        </span>
-        {day.isToday && <span className="badge week-day-badge">{t.calendar.todayBadge}</span>}
-        {DAY_STATUS_ICON[day.status] && (
-          <span className={`badge day-status day-status-${day.status}`}>
-            <span aria-hidden="true">{DAY_STATUS_ICON[day.status]}</span>
-            {t.calendar.dayStatus[day.status]}
-          </span>
+        {collapsible ? (
+          // Dia passado no celular: recolhido, tocar no título expande
+          <button
+            type="button"
+            className="week-day-toggle"
+            aria-expanded={expanded}
+            aria-controls={bodyId}
+            onClick={onToggle}
+          >
+            {headerContent}
+            <span className="week-day-chevron" aria-hidden="true" />
+          </button>
+        ) : (
+          headerContent
         )}
       </h3>
 
-      {day.activities.length === 0 ? (
-        <p className="week-day-empty muted">{t.calendar.empty}</p>
-      ) : (
-        <ul className="week-activities">
-          {day.activities.map((item) => (
-            <li
-              key={`${item.activityId}-${item.occurrence?.id ?? 'prevista'}`}
-              className="week-activity"
-              data-status={item.status}
-            >
-              {item.editable ? (
-                <button
-                  type="button"
-                  className="week-activity-button week-activity-row"
-                  onClick={(event) => onEdit(event, item)}
-                  aria-label={t.calendar.editActivityAria(
-                    item.time,
-                    item.name,
-                    t.calendar.activityStatus[item.status],
-                  )}
-                >
-                  <ActivityLabel item={item} />
-                </button>
-              ) : (
-                <div className="week-activity-row">
-                  <ActivityLabel item={item} />
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
+      <div id={bodyId} className="week-day-body" hidden={!expanded}>
+        {day.activities.length === 0 ? (
+          <p className="week-day-empty muted">{t.calendar.empty}</p>
+        ) : (
+          <ul className="week-activities">
+            {day.activities.map((item) => (
+              <li
+                key={`${item.activityId}-${item.occurrence?.id ?? 'prevista'}`}
+                className="week-activity"
+                data-status={item.status}
+              >
+                {item.editable ? (
+                  <button
+                    type="button"
+                    className="week-activity-button week-activity-row"
+                    onClick={(event) => onEdit(event, item)}
+                    aria-label={t.calendar.editActivityAria(
+                      item.time,
+                      item.name,
+                      t.calendar.activityStatus[item.status],
+                    )}
+                  >
+                    <ActivityLabel item={item} />
+                  </button>
+                ) : (
+                  <div className="week-activity-row">
+                    <ActivityLabel item={item} />
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       {!day.isPast && (
         <button
