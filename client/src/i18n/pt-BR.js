@@ -183,6 +183,10 @@ const ptBR = {
     logsEmpty: 'Nenhuma mensagem enviada ainda.',
     logStatus: { enviada: 'Enviada', falhou: 'Falhou' },
   },
+  validate: {
+    loading: 'Validando atividade…',
+    goToCalendar: 'Ir para o calendário',
+  },
   notFound: {
     title: 'Página não encontrada',
     description: 'O endereço que você acessou não existe.',

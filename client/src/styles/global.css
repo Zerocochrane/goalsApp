@@ -907,3 +907,39 @@ a:hover {
   background: var(--color-danger);
   color: var(--color-on-primary);
 }
+
+/* ---------- Validação pelo link (/validar/:token) ---------- */
+
+.validate-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  min-height: 50vh;
+  color: var(--color-text-muted);
+}
+
+.validate-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  width: 100%;
+  max-width: 28rem;
+  text-align: center;
+  color: var(--color-text);
+}
+
+.validate-icon {
+  font-size: 2.5rem;
+  line-height: 1;
+}
+
+.validate-title {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.validate-card .muted {
+  margin: 0;
+}
