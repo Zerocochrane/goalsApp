@@ -188,10 +188,11 @@ internos são aceitos no `redirect`.
 
 ## Testes
 
-| Comando            | O que roda                                                  |
-| ------------------ | ----------------------------------------------------------- |
-| `npm test`         | Vitest em `server/test/` — unidade e API (Supertest), ~30 s |
-| `npm run test:e2e` | `npm run build` + Playwright em `e2e/` (Chromium; ~1–2 min) |
+| Comando                   | O que roda                                                  |
+| ------------------------- | ----------------------------------------------------------- |
+| `npm test`                | Vitest em `server/test/` — unidade e API (Supertest), ~30 s |
+| `npm run test:e2e`        | `npm run build` + Playwright em `e2e/` (Chromium; ~1–2 min) |
+| `npm run test:responsivo` | `npm run build` + só `e2e/responsivo.spec.js` (roda no CI)  |
 
 - **API** ([`server/test/api/`](server/test/api/)): o app Express real sobre um SQLite temporário
   com as migrations reais — login/cookie/JWT e rate limit, permissões (master × usuário ×
@@ -206,6 +207,11 @@ internos são aceitos no `redirect`.
   - `revisao.spec.js`: todas as telas em claro e escuro, no celular (360 px), tablet e desktop —
     textos em pt-BR, cores do tema e nenhuma rolagem horizontal. Grava um print de cada tela em
     `test-results/`.
+  - `responsivo.spec.js`: todas as telas em 320, 375, 414, 768 e 1280 px, claro e escuro, com
+    dados longos (nomes de 80 caracteres, sequência de 3 dígitos). Falha com rolagem
+    horizontal, elemento saindo da tela ou controle menor que 44×44 px no celular. Roda no job
+    **responsivo** do GitHub Actions antes do deploy — se falhar, o deploy não acontece — e as
+    capturas ficam no artefato `capturas-responsivo`.
 - Na primeira vez, instale o navegador: `npx playwright install chromium`.
 
 ## Revisão de segurança

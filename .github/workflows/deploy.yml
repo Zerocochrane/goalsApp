@@ -1,4 +1,6 @@
 # Publica o Goals App no servidor (Oracle Cloud) a cada push na branch main.
+# Antes, o job "responsivo" roda os testes de responsividade (Playwright): se falhar,
+# o deploy não acontece. As capturas de tela ficam como artefato da execução.
 # Baseado no workflow do repositório Site — roda no MESMO servidor, em pasta,
 # processo PM2 (goals-app) e porta (4101) próprios, sem tocar no Site.
 #
@@ -30,7 +32,44 @@ env:
   DEST: /home/ubuntu/goalsApp
 
 jobs:
+  responsivo:
+    name: responsivo
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+            client/package-lock.json
+
+      - name: Instalar dependências
+        run: npm ci --no-audit --no-fund
+
+      - name: Instalar o Chromium do Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Testes de responsividade (320–1280px, claro e escuro)
+        env:
+          CI: 'true'
+        run: npm run test:responsivo
+
+      - name: Salvar capturas de tela
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: capturas-responsivo
+          path: test-results/
+          if-no-files-found: warn
+          retention-days: 14
+
   deploy:
+    needs: responsivo
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:

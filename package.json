@@ -14,6 +14,7 @@
     "start": "npm start --prefix server",
     "test": "npm test --prefix server",
     "test:e2e": "npm run build && playwright test",
+    "test:responsivo": "npm run build && playwright test e2e/responsivo.spec.js",
     "deploy": "bash scripts/deploy-pm2.sh",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
