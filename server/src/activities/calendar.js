@@ -45,6 +45,10 @@ export function calendarRouter() {
           active: true,
           createdAt: true,
           updatedAt: true,
+          // Para os ícones da linha (descrição/vídeo/anexo); o conteúdo vem em /activities/:id
+          description: true,
+          videoUrl: true,
+          attachment: { select: { mimeType: true } },
         },
       }),
       prisma.taskOccurrence.findMany({

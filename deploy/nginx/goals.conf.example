@@ -53,7 +53,8 @@ server {
     add_header X-Content-Type-Options nosniff always;
     add_header Referrer-Policy strict-origin-when-cross-origin always;
 
-    client_max_body_size 1m;
+    # Anexos das atividades: até 5 MB (+ folga do multipart). O app também recusa > 5 MB.
+    client_max_body_size 6m;
 
     gzip on;
     gzip_types text/css application/javascript application/json image/svg+xml;

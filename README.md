@@ -47,6 +47,7 @@ cp server/.env.example server/.env
 | `WA_DISABLED`           | `true` desliga o WhatsApp (ex.: em desenvolvimento)                         |
 | `BACKUP_DIR`            | Pasta dos backups diários do SQLite (padrão `data/backups`)                 |
 | `BACKUP_KEEP_DAYS`      | Quantos dias de backup guardar (padrão 14)                                  |
+| `UPLOAD_DIR`            | Pasta dos anexos das atividades (padrão `data/uploads`, fora do git)        |
 | `TZ`                    | Fuso horário (`America/Sao_Paulo`)                                          |
 
 O `server/.env` nunca é versionado.
@@ -325,6 +326,9 @@ comentários: [`deploy/nginx/goals.conf.example`](deploy/nginx/goals.conf.exampl
 - Todo dia às 03:00 o próprio app grava `server/data/backups/goals-AAAA-MM-DD.db` (via
   `VACUUM INTO`, seguro com o app rodando) e apaga os com mais de `BACKUP_KEEP_DAYS` dias.
   O deploy também faz um antes das migrações. Manual: `npm run backup --prefix server`.
+- Os anexos das atividades (`server/data/uploads`) são copiados no mesmo horário para
+  `server/data/backups/uploads/`; os removidos do app ficam lá por `BACKUP_KEEP_DAYS` dias.
+  Restaurar: copie os arquivos de volta para `server/data/uploads/`.
 - Os backups ficam no mesmo disco: copie-os para fora de vez em quando (ex.: `rsync`/`scp`).
 - Restaurar: `pm2 stop goals-app`, copie o backup sobre `server/data/goals.db` (apague
   `goals.db-wal` e `goals.db-shm`), `pm2 start goals-app`.

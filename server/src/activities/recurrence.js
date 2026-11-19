@@ -186,6 +186,14 @@ function toItem(activity, occurrence) {
     time: formatTime(activity.hour, activity.minute),
     // Só a versão ativa pode ser editada/excluída (versões encerradas ficam no histórico)
     editable: activity.active === true,
+    // Ícones da linha: tem descrição, vídeo, anexo ('foto' | 'pdf' | null)
+    hasDescription: Boolean(activity.description),
+    hasVideo: Boolean(activity.videoUrl),
+    attachment: activity.attachment
+      ? activity.attachment.mimeType === 'application/pdf'
+        ? 'pdf'
+        : 'foto'
+      : null,
     status: occurrence?.status ?? 'pendente',
     occurrence: occurrence && {
       id: occurrence.id,

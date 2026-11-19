@@ -41,6 +41,7 @@ export async function createTestDatabase(name) {
     prisma,
     /** Apaga todos os dados (a ordem respeita as chaves estrangeiras). */
     async reset() {
+      await prisma.attachment.deleteMany();
       await prisma.friendship.deleteMany();
       await prisma.taskOccurrence.deleteMany();
       await prisma.activity.deleteMany();

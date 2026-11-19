@@ -5,12 +5,18 @@
 // Os arquivos ficam em BACKUP_DIR (padrão server/data/backups, que o deploy nunca apaga)
 // com o nome goals-AAAA-MM-DD.db; o do mesmo dia é sobrescrito. Backups com mais de
 // BACKUP_KEEP_DAYS dias são apagados.
+//
+// Os anexos (server/data/uploads) são copiados para BACKUP_DIR/uploads: como cada arquivo
+// tem nome aleatório e nunca muda, basta copiar os novos. Os que foram apagados do app
+// continuam na cópia por BACKUP_KEEP_DAYS dias (os backups do banco desse período ainda
+// apontam para eles).
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import cron from 'node-cron';
 import { prisma as defaultPrisma } from '../db/prisma.js';
 import { TIME_ZONE, todayInSaoPaulo } from '../activities/recurrence.js';
+import { isStoredName, uploadDir } from '../attachments/storage.js';
 
 const SERVER_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const FILE_RE = /^goals-(\d{4}-\d{2}-\d{2})\.db$/;
@@ -34,6 +40,41 @@ export function expiredBackups(files, today, days) {
   });
 }
 
+async function listFiles(dir) {
+  try {
+    return (await fs.readdir(dir)).filter(isStoredName);
+  } catch (err) {
+    if (err.code === 'ENOENT') return [];
+    throw err;
+  }
+}
+
+/** Copia os anexos novos para `dest` e apaga da cópia os removidos há mais de `days` dias. */
+export async function backupUploads({
+  src = uploadDir(),
+  dest,
+  days = keepDays(),
+  now = Date.now(),
+}) {
+  const current = await listFiles(src);
+  await fs.mkdir(dest, { recursive: true });
+  const copied = new Set(await listFiles(dest));
+  for (const name of current) {
+    if (!copied.has(name)) await fs.copyFile(path.join(src, name), path.join(dest, name));
+  }
+  const live = new Set(current);
+  for (const name of copied) {
+    if (live.has(name)) continue;
+    const file = path.join(dest, name);
+    const { mtimeMs } = await fs.stat(file);
+    // A cópia guarda a data do backup em que o arquivo foi visto pela última vez
+    if (now - mtimeMs > days * DAY_MS) await fs.rm(file, { force: true });
+  }
+  // Marca os arquivos ainda em uso como "vistos hoje"
+  const seen = new Date(now);
+  await Promise.all(current.map((name) => fs.utimes(path.join(dest, name), seen, seen)));
+}
+
 /**
  * Gera o backup de hoje e apaga os antigos. Devolve o caminho do arquivo criado.
  */
@@ -42,6 +83,7 @@ export async function backupDatabase({
   dir = backupDir(),
   today = todayInSaoPaulo(),
   days = keepDays(),
+  uploads = uploadDir(),
 } = {}) {
   await fs.mkdir(dir, { recursive: true });
   const file = path.join(dir, `goals-${today}.db`);
@@ -54,6 +96,7 @@ export async function backupDatabase({
   for (const old of expiredBackups(await fs.readdir(dir), today, days)) {
     await fs.rm(path.join(dir, old), { force: true });
   }
+  await backupUploads({ src: uploads, dest: path.join(dir, 'uploads'), days });
   return file;
 }
 

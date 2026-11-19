@@ -40,6 +40,7 @@ model User {
   friendsRequested  Friendship[]       @relation("FriendshipRequester")
   friendsReceived   Friendship[]       @relation("FriendshipAddressee")
   phoneVerification PhoneVerification?
+  attachments       Attachment[]
 }
 
 enum UserStatus {
@@ -75,12 +76,36 @@ model Activity {
   weekdays  Json // lista de dias 0–6 (0 = domingo, 1 = segunda … 6 = sábado), ex.: [1,3,5]
   startDate String // AAAA-MM-DD (data clicada no calendário)
   endDate   String? // AAAA-MM-DD, último dia em que a atividade vale (null = sem fim)
+  description String? // texto puro, até 1.000 caracteres
+  videoUrl  String? // https://… (YouTube/Vimeo aparecem incorporados)
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   occurrences TaskOccurrence[]
+  attachment  Attachment?
+
+  @@index([userId])
+}
+
+// Anexo (foto JPG/PNG/WebP ou PDF, até 5 MB) de uma atividade — no máximo um.
+// O arquivo fica em server/data/uploads/<storedName> (nome aleatório, nunca o enviado).
+// Ao editar a atividade (nova versão), o anexo passa para a versão ativa.
+model Attachment {
+  id           Int      @id @default(autoincrement())
+  activityId   Int      @unique
+  userId       Int
+  storedName   String   @unique
+  originalName String
+  mimeType     String
+  size         Int // bytes (depois de remover os metadados)
+  width        Int? // fotos
+  height       Int?
+  createdAt    DateTime @default(now())
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }

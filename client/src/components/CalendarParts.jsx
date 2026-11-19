@@ -74,6 +74,9 @@ export function DayActivities({ day, onEdit, onComplete, completingId = null }) 
                 item.time,
                 item.name,
                 t.calendar.activityStatus[item.status],
+                activityExtras(item)
+                  .map((kind) => t.calendar.extras[kind])
+                  .join(', '),
               )}
             >
               <ActivityLabel item={item} />
@@ -127,6 +130,59 @@ function CompleteShortcut({ item, busy, disabled, onClick }) {
   );
 }
 
+/** O que a atividade tem além de nome e horário: 'description' | 'video' | 'foto' | 'pdf'. */
+function activityExtras(item) {
+  return [item.hasDescription && 'description', item.hasVideo && 'video', item.attachment].filter(
+    Boolean,
+  );
+}
+
+const EXTRA_ICON = {
+  // Linhas de texto
+  description: <path d="M5 6h14M5 11h14M5 16h9" />,
+  // Botão de play
+  video: (
+    <>
+      <rect x="3" y="5" width="18" height="14" rx="3" />
+      <path d="M10 9.2v5.6l4.8-2.8z" />
+    </>
+  ),
+  // Foto (montanha e sol)
+  foto: (
+    <>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <circle cx="9" cy="10" r="1.6" />
+      <path d="M4 17l5-4.5 3.5 3 3-2.5L20 17" />
+    </>
+  ),
+  // Clipe de papel
+  pdf: (
+    <path d="M15.5 7.5l-6.4 6.4a1.8 1.8 0 002.5 2.5l6.8-6.8a3.5 3.5 0 00-5-5l-7 7a5.2 5.2 0 007.4 7.4l5.7-5.7" />
+  ),
+};
+
+/** Ícones de descrição/vídeo/anexo na linha (com nome para leitores de tela). */
+function ActivityExtras({ item }) {
+  const extras = activityExtras(item);
+  if (extras.length === 0) return null;
+  return (
+    <span className="activity-extras">
+      {extras.map((kind) => (
+        <svg
+          key={kind}
+          className={`activity-extra activity-extra-${kind}`}
+          viewBox="0 0 24 24"
+          role="img"
+          aria-label={t.calendar.extras[kind]}
+        >
+          <title>{t.calendar.extras[kind]}</title>
+          {EXTRA_ICON[kind]}
+        </svg>
+      ))}
+    </span>
+  );
+}
+
 function ActivityLabel({ item }) {
   return (
     <>
@@ -142,6 +198,7 @@ function ActivityLabel({ item }) {
           {item.name}
         </span>
         <span className="sr-only">, {t.calendar.activityStatus[item.status]}</span>
+        <ActivityExtras item={item} />
       </span>
     </>
   );

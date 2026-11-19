@@ -19,5 +19,9 @@ export default defineConfig(({ mode }) => {
     preview: {
       port: webPort,
     },
+    build: {
+      // PDF.js (~500 kB) só é baixado ao abrir um PDF anexado (import dinâmico)
+      chunkSizeWarningLimit: 600,
+    },
   };
 });

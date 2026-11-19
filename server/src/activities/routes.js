@@ -6,14 +6,18 @@
 // ligadas à versão (nome/horário) que as gerou.
 import { Router } from 'express';
 import { prisma } from '../db/prisma.js';
+import { attachmentRoutes, attachmentSelect } from '../attachments/routes.js';
+import { removeFiles } from '../attachments/storage.js';
 import { addDays, formatTime, todayInSaoPaulo } from './recurrence.js';
 import { completeActivity } from '../occurrences/complete.js';
 import { dayCelebrationPending } from '../day/celebration.js';
 import {
   parseActivityName,
+  parseDescription,
   parseHour,
   parseMinute,
   parseStartDate,
+  parseVideoUrl,
   parseWeekdays,
 } from './validation.js';
 
@@ -27,16 +31,27 @@ const activitySelect = {
   weekdays: true,
   startDate: true,
   endDate: true,
+  description: true,
+  videoUrl: true,
   active: true,
   createdAt: true,
   updatedAt: true,
+  attachment: { select: attachmentSelect },
 };
 
+// Campos que definem quando a atividade acontece: mudar algum deles gera uma nova versão.
+// Descrição e vídeo podem mudar na própria versão (não alteram dias passados).
+const SCHEDULE_FIELDS = ['name', 'hour', 'minute', 'weekdays', 'startDate'];
+
 function toPublic(activity) {
-  return { ...activity, time: formatTime(activity.hour, activity.minute) };
+  return {
+    ...activity,
+    attachment: activity.attachment ?? null,
+    time: formatTime(activity.hour, activity.minute),
+  };
 }
 
-function parseId(raw) {
+export function parseId(raw) {
   const id = Number(raw);
   return Number.isSafeInteger(id) && id > 0 ? id : null;
 }
@@ -68,6 +83,8 @@ function readActivityInput(body, { today, current }) {
   check('weekdays', parseWeekdays);
   if (!current && body.startDate === undefined) data.startDate = today;
   else check('startDate', (value) => parseStartDate(value, today));
+  check('description', parseDescription);
+  check('videoUrl', parseVideoUrl);
 
   return { data, errors };
 }
@@ -148,6 +165,18 @@ export function activitiesRouter() {
       const fresh = await findOwnActive(tx, id, req.user.id);
       if (!fresh) return null;
 
+      // Só descrição/vídeo mudaram: atualiza esta versão, sem mexer nas ocorrências
+      const sameSchedule = SCHEDULE_FIELDS.every(
+        (field) => JSON.stringify(data[field]) === JSON.stringify(fresh[field]),
+      );
+      if (sameSchedule) {
+        return tx.activity.update({
+          where: { id },
+          data: { description: data.description, videoUrl: data.videoUrl },
+          select: activitySelect,
+        });
+      }
+
       const cutover = await cutoverDate(tx, id, today);
       await deleteUnsentOccurrences(tx, id, today);
       const startDate = data.startDate > cutover ? data.startDate : cutover;
@@ -166,16 +195,25 @@ export function activitiesRouter() {
         where: { id },
         data: { active: false, endDate: addDays(cutover, -1) },
       });
-      return tx.activity.create({
+      const created = await tx.activity.create({
         data: { ...data, startDate, userId: req.user.id },
-        select: activitySelect,
+        select: { id: true },
       });
+      // O anexo acompanha a versão ativa
+      await tx.attachment.updateMany({
+        where: { activityId: id },
+        data: { activityId: created.id },
+      });
+      return tx.activity.findUnique({ where: { id: created.id }, select: activitySelect });
     });
 
     if (!activity) return res.status(404).json({ error: NOT_FOUND });
     // `previousId` ajuda o cliente quando a edição gerou uma nova versão (novo id)
     res.json({ activity: toPublic(activity), previousId: id });
   });
+
+  // Anexo (foto ou PDF): enviar, abrir e remover — só o dono
+  router.use('/:id/attachment', attachmentRoutes());
 
   // Conclui a atividade de hoje pelo site (mesmas regras do link do WhatsApp).
   // Ao concluir, `diaConcluidoParaComemorar` diz se hoje acabou de ficar todo concluído.
@@ -199,6 +237,12 @@ export function activitiesRouter() {
 
     const deleted = await prisma.$transaction(async (tx) => {
       if (!(await findOwnActive(tx, id, req.user.id))) return false;
+      // O anexo vai embora com a atividade (o arquivo é apagado depois da transação)
+      const attachment = await tx.attachment.findUnique({
+        where: { activityId: id },
+        select: { storedName: true },
+      });
+      if (attachment) await tx.attachment.delete({ where: { activityId: id } });
       const cutover = await cutoverDate(tx, id, today);
       await deleteUnsentOccurrences(tx, id, today);
       // Exclusão lógica: os dias até a véspera do corte continuam mostrando a atividade
@@ -206,10 +250,11 @@ export function activitiesRouter() {
         where: { id },
         data: { active: false, endDate: addDays(cutover, -1) },
       });
-      return true;
+      return { storedName: attachment?.storedName };
     });
 
     if (!deleted) return res.status(404).json({ error: NOT_FOUND });
+    if (deleted.storedName) await removeFiles([deleted.storedName]);
     res.status(204).end();
   });
 

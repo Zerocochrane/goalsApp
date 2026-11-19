@@ -7,6 +7,7 @@ import { publicUserSelect, requireMaster } from '../auth/middleware.js';
 import { hashPassword, verifyPassword } from '../auth/password.js';
 import { setSessionCookie } from '../auth/session.js';
 import { parseName, parsePassword, parsePhone, parseUsername } from './validation.js';
+import { removeFiles, userStoredNames } from '../attachments/storage.js';
 import { codeCheckLimiter, codeSendLimiters } from '../signup/limits.js';
 import {
   checkVerificationCode,
@@ -150,8 +151,11 @@ export function usersRouter({ send }) {
       return res.status(400).json({ error: 'O administrador master não pode ser excluído' });
     }
 
-    // Atividades e execuções do usuário vão junto (onDelete: Cascade)
+    // Atividades, execuções e anexos do usuário vão junto (onDelete: Cascade); os arquivos
+    // dos anexos são apagados em seguida
+    const files = await userStoredNames(prisma, id);
     await prisma.user.delete({ where: { id } });
+    await removeFiles(files);
     res.status(204).end();
   });
 
@@ -186,9 +190,11 @@ export function usersRouter({ send }) {
   router.post('/:id/reject', async (req, res) => {
     const id = parseId(req.params.id);
     if (!id) return res.status(404).json({ error: USER_NOT_FOUND });
+    const files = await userStoredNames(prisma, id);
     const { count } = await prisma.user.deleteMany({
       where: { id, status: 'pendente', isMaster: false },
     });
+    if (count) await removeFiles(files);
     if (count === 0) {
       const exists = await prisma.user.count({ where: { id } });
       return exists

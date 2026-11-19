@@ -52,6 +52,7 @@ export default defineConfig({
       MASTER_ADMIN_PASSWORD: process.env.E2E_ADMIN_PASSWORD,
       WA_DISABLED: 'true',
       BACKUP_DIR: path.join(E2E_DATA_DIR, 'backups'),
+      UPLOAD_DIR: path.join(E2E_DATA_DIR, 'uploads'),
       TZ: 'America/Sao_Paulo',
     },
   },

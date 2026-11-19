@@ -69,7 +69,7 @@ if [ -n "$PID" ]; then
 fi
 ok "Configuração ok (app na porta $WEB_PORT)"
 
-mkdir -p server/data server/data/backups logs
+mkdir -p server/data server/data/backups server/data/uploads logs
 
 # Rotação dos logs do PM2 (módulo global do PM2; vale também para os logs do Site)
 if ! pm2 describe pm2-logrotate >/dev/null 2>&1; then
