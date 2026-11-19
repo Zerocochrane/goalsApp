@@ -27,6 +27,9 @@ const ptBR = {
     celebrationText: (n) => `Parabéns! Você completou ${n} dias seguidos! 🔥`,
     celebrationClose: 'Continuar',
   },
+  dayCelebration: {
+    notice: 'Parabéns! Você concluiu todas as atividades de hoje 🎉',
+  },
   nav: {
     home: 'Início',
     friends: 'Amigos',

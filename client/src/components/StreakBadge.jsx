@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useLocation } from 'react-router';
 import { api } from '../lib/api.js';
+import { celebrateToday, onStreakChanged, useDayCelebration } from '../lib/dayCelebration.js';
 import t from '../i18n/pt-BR.js';
 
 const POLL_INTERVAL_MS = 60_000;
@@ -8,13 +9,16 @@ const POLL_INTERVAL_MS = 60_000;
 /**
  * Sequência de dias concluídos no cabeçalho (ícone + "X dias") e, ao atingir um
  * marco (10, 20, 30…) ainda não comemorado, um diálogo de parabéns — uma vez por marco.
- * Recarrega ao trocar de página, quando a janela volta a ter foco e a cada minuto.
+ * Recarrega ao trocar de página, quando a janela volta a ter foco, a cada minuto e ao
+ * validar uma atividade. Se hoje acabou de ficar todo concluído, dispara o confete,
+ * que vem antes do diálogo de marco (sem sobrepor).
  */
 export default function StreakBadge() {
   const location = useLocation();
   const [streak, setStreak] = useState(null);
   const [celebrating, setCelebrating] = useState(null); // marco sendo comemorado
   const [reloadKey, setReloadKey] = useState(0);
+  const { confetti } = useDayCelebration();
 
   useEffect(() => {
     let ignore = false;
@@ -22,6 +26,7 @@ export default function StreakBadge() {
       .then((data) => {
         if (ignore) return;
         setStreak(data.atual);
+        if (data.diaConcluidoParaComemorar) celebrateToday();
         if (data.marcoPendente) setCelebrating((current) => current ?? data.marcoPendente);
       })
       .catch(() => {
@@ -39,7 +44,9 @@ export default function StreakBadge() {
     const timer = setInterval(refresh, POLL_INTERVAL_MS);
     document.addEventListener('visibilitychange', refresh);
     window.addEventListener('focus', refresh);
+    const off = onStreakChanged(refresh);
     return () => {
+      off();
       clearInterval(timer);
       document.removeEventListener('visibilitychange', refresh);
       window.removeEventListener('focus', refresh);
@@ -69,7 +76,8 @@ export default function StreakBadge() {
         </span>
         {t.streak.days(streak)}
       </span>
-      <CelebrationDialog milestone={celebrating} onClose={closeCelebration} />
+      {/* Enquanto o confete do dia cai, o diálogo de marco espera */}
+      <CelebrationDialog milestone={confetti ? null : celebrating} onClose={closeCelebration} />
     </>
   );
 }

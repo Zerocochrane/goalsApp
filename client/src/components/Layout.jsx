@@ -5,6 +5,7 @@ import { api } from '../lib/api.js';
 import { onFriendsChanged } from '../lib/friends.js';
 import { onUsersChanged } from '../lib/users.js';
 import t from '../i18n/pt-BR.js';
+import DayCelebration from './DayCelebration.jsx';
 import StreakBadge from './StreakBadge.jsx';
 import ThemeToggle from './ThemeToggle.jsx';
 
@@ -199,6 +200,9 @@ export default function Layout() {
       <main className="app-main">
         <Outlet />
       </main>
+
+      {/* Confete + aviso quando hoje fica todo concluído */}
+      <DayCelebration />
     </div>
   );
 }

@@ -1,9 +1,11 @@
-// GET  /api/streak            → { atual, ultimoMarcoComemorado, marcoPendente }
+// GET  /api/streak            → { atual, ultimoMarcoComemorado, marcoPendente,
+//                                 diaConcluidoParaComemorar }
 // POST /api/streak/celebrate  → marca o marco atual como comemorado (só uma vez por marco)
 import { Router } from 'express';
 import { prisma } from '../db/prisma.js';
 import { buildCalendar, todayInSaoPaulo } from '../activities/recurrence.js';
 import { computeStreak, milestoneFor, pendingMilestone } from './streak.js';
+import { dayCelebrationPending } from '../day/celebration.js';
 
 /** Sequência atual do usuário, calculada sobre todo o histórico até hoje. */
 export async function currentStreak(userId, now = new Date()) {
@@ -61,18 +63,20 @@ export function streakRouter() {
   const router = Router();
 
   router.get('/', async (req, res) => {
-    const [atual, user] = await Promise.all([
+    const [atual, user, diaConcluidoParaComemorar] = await Promise.all([
       currentStreak(req.user.id),
       prisma.user.findUnique({
         where: { id: req.user.id },
         select: { lastCelebratedStreak: true },
       }),
+      dayCelebrationPending(req.user.id),
     ]);
     const ultimoMarcoComemorado = user?.lastCelebratedStreak ?? 0;
     res.json({
       atual,
       ultimoMarcoComemorado,
       marcoPendente: pendingMilestone(atual, ultimoMarcoComemorado),
+      diaConcluidoParaComemorar,
     });
   });
 

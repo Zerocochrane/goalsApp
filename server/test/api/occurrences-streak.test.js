@@ -110,7 +110,12 @@ describe('GET/POST /api/streak', () => {
   test('sem atividades → 0', async () => {
     const res = await asAna.get('/api/streak');
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ atual: 0, ultimoMarcoComemorado: 0, marcoPendente: null });
+    expect(res.body).toEqual({
+      atual: 0,
+      ultimoMarcoComemorado: 0,
+      marcoPendente: null,
+      diaConcluidoParaComemorar: false,
+    });
   });
 
   test('conta dias seguidos concluídos; hoje pendente não quebra', async () => {
@@ -138,6 +143,7 @@ describe('GET/POST /api/streak', () => {
       atual: 10,
       ultimoMarcoComemorado: 0,
       marcoPendente: 10,
+      diaConcluidoParaComemorar: false,
     });
 
     const first = await asAna.post('/api/streak/celebrate');

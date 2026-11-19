@@ -24,6 +24,8 @@ model User {
   phone                String? // WhatsApp em formato E.164 (ex.: +5532999999999)
   isMaster             Boolean    @default(false)
   lastCelebratedStreak Int        @default(0)
+  // Último dia (AAAA-MM-DD, São Paulo) comemorado com confete por ter concluído tudo
+  lastDayCelebrated    String?
   sessionVersion       Int        @default(0) // muda ao trocar a senha: derruba sessões antigas
   // Conta criada pelo cadastro nasce `pendente` e só usa o app depois de `ativo`
   status               UserStatus @default(ativo)

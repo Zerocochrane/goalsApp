@@ -13,6 +13,7 @@ import { calendarRouter } from './activities/calendar.js';
 import { whatsappRouter } from './whatsapp/routes.js';
 import { occurrencesRouter } from './occurrences/routes.js';
 import { streakRouter } from './streak/routes.js';
+import { dayRouter } from './day/celebration.js';
 import { friendsRouter } from './friends/routes.js';
 import { leaderboardRouter } from './leaderboard/routes.js';
 import { signupRouter } from './signup/routes.js';
@@ -80,6 +81,7 @@ export function createApp({
   app.use('/api/calendar', calendarRouter());
   app.use('/api/occurrences', occurrencesRouter()); // validação pelo link do WhatsApp
   app.use('/api/streak', streakRouter()); // sequência do próprio usuário
+  app.use('/api/day', dayRouter()); // confete do dia concluído
   app.use('/api/friends', friendsRouter()); // amigos e pedidos de amizade
   app.use('/api/leaderboard', leaderboardRouter()); // ranking entre amigos (só números)
   app.use('/api/whatsapp', whatsappRouter()); // somente admin master

@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { api } from '../lib/api.js';
+import { celebrateToday, notifyStreakChanged } from '../lib/dayCelebration.js';
 import { TIME_ZONE, formatWeekdayDayMonth, todayInSaoPaulo } from '../lib/dates.js';
 import t from '../i18n/pt-BR.js';
 
@@ -81,7 +82,14 @@ export default function ValidatePage() {
 
   useEffect(() => {
     let cancelled = false;
-    validate(token).then((r) => !cancelled && setResult(r));
+    validate(token).then((r) => {
+      if (cancelled) return;
+      setResult(r);
+      if (r.code !== 'concluida') return;
+      // Última atividade de hoje: confete logo após "Atividade concluída!"
+      if (r.data?.diaConcluidoParaComemorar) celebrateToday();
+      notifyStreakChanged(); // a sequência do cabeçalho pode ter mudado
+    });
     return () => {
       cancelled = true;
     };
