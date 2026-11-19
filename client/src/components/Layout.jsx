@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, NavLink, Outlet } from 'react-router';
+import { Link, NavLink, Outlet, useMatch } from 'react-router';
 import { useAuth } from '../auth/AuthContext.jsx';
 import t from '../i18n/pt-BR.js';
 import StreakBadge from './StreakBadge.jsx';
@@ -63,6 +63,8 @@ function NavItem({ to, end, icon, label, shortLabel }) {
 export default function Layout() {
   const { user, logout } = useAuth();
   const [loggingOut, setLoggingOut] = useState(false);
+  // Calendário (início) usa um container mais largo; cabeçalho e abas acompanham
+  const isWide = useMatch({ path: '/', end: true }) !== null;
 
   async function handleLogout() {
     setLoggingOut(true);
@@ -74,7 +76,7 @@ export default function Layout() {
   }
 
   return (
-    <div className="app-shell">
+    <div className={isWide ? 'app-shell app-shell-wide' : 'app-shell'}>
       <header className="app-header">
         <Link to="/" className="app-brand" aria-label={t.header.homeLink}>
           {t.app.name}

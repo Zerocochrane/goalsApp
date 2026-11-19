@@ -25,6 +25,7 @@ h2,
 h3 {
   line-height: 1.25;
   margin: 0 0 var(--space-3);
+  text-wrap: balance;
 }
 
 p {
@@ -64,10 +65,20 @@ summary {
 /* ---------- Estrutura ---------- */
 
 .app-shell {
+  /* Cabeçalho, abas e conteúdo compartilham o mesmo container: a margem
+     lateral (gutter) acompanha a largura máxima da página atual. */
+  --shell-width: var(--content-width);
+  --shell-gutter: max(var(--space-4), calc((100% - var(--shell-width)) / 2 + var(--space-4)));
+
   min-height: 100vh; /* reserva p/ navegadores sem dvh */
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
+}
+
+/* Calendário: mais largura no desktop para as 7 colunas */
+.app-shell-wide {
+  --shell-width: var(--content-width-wide);
 }
 
 .app-header {
@@ -79,10 +90,9 @@ summary {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
-  padding: 0 var(--space-4);
   /* viewport-fit=cover: no iPhone deitado, nada fica sob o entalhe */
-  padding-left: max(var(--space-4), env(safe-area-inset-left));
-  padding-right: max(var(--space-4), env(safe-area-inset-right));
+  padding-left: max(var(--shell-gutter), env(safe-area-inset-left));
+  padding-right: max(var(--shell-gutter), env(safe-area-inset-right));
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
 }
@@ -273,7 +283,7 @@ summary {
 .app-main {
   flex: 1;
   width: 100%;
-  max-width: var(--content-width);
+  max-width: var(--shell-width);
   margin: 0 auto;
   padding: var(--space-6) var(--space-4);
   padding-left: max(var(--space-4), env(safe-area-inset-left));
@@ -543,7 +553,10 @@ a.button-ghost:hover {
 .app-nav {
   display: flex;
   gap: var(--space-1);
-  padding: 0 var(--space-4);
+  /* O texto da primeira aba alinha com o conteúdo (desconta o padding do link) */
+  padding: 0 calc(var(--shell-gutter) - var(--space-3));
+  padding-left: max(calc(var(--shell-gutter) - var(--space-3)), env(safe-area-inset-left));
+  padding-right: max(calc(var(--shell-gutter) - var(--space-3)), env(safe-area-inset-right));
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
   overflow-x: auto;
@@ -640,6 +653,7 @@ a.button-ghost:hover {
   justify-content: space-between;
   gap: var(--space-4);
   flex-wrap: wrap;
+  margin-bottom: var(--space-4);
 }
 
 .section-title {
@@ -1165,6 +1179,17 @@ a.button-ghost:hover {
     display: block;
   }
 
+  /* Nome com no máximo 2 linhas + reticências; o texto completo continua no
+     DOM (leitores de tela), no title e no aria-label do botão */
+  .week-activity-name {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+  }
+
   .week-activity-sep {
     display: none;
   }
@@ -1224,6 +1249,16 @@ a.button-ghost:hover {
 .week-add:active {
   border-color: var(--color-primary);
   background: var(--color-surface-muted);
+}
+
+/* Tablet: grade de 2 colunas de dias (continua com toque de 44px e dias
+   passados recolhíveis) */
+@media (min-width: 600px) and (max-width: 839px) {
+  .week-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
 }
 
 /* Celular e tablet (lista vertical): alvos de toque de 44px e 8px entre eles.

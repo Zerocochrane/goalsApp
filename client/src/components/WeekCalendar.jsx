@@ -409,7 +409,9 @@ function ActivityLabel({ item }) {
         <span className="week-activity-sep" aria-hidden="true">
           {' – '}
         </span>
-        <span className="week-activity-name">{item.name}</span>
+        <span className="week-activity-name" title={item.name}>
+          {item.name}
+        </span>
         <span className="sr-only">, {t.calendar.activityStatus[item.status]}</span>
       </span>
     </>
