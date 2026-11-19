@@ -16,6 +16,7 @@ const SCREENS = [
     open: (page) => page.locator('[data-add-date]').first().click(),
   },
   { name: 'amigos', path: '/amigos', heading: 'Amigos', exact: true },
+  { name: 'ranking', path: '/amigos/ranking', heading: 'Ranking', exact: true },
   { name: 'perfil', path: '/perfil', heading: 'Meu perfil' },
   { name: 'usuarios', path: '/usuarios', heading: 'Usuários' },
   { name: 'whatsapp', path: '/whatsapp', heading: 'WhatsApp' },

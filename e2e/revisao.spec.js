@@ -10,6 +10,7 @@ const SCREENS = [
   { name: 'inicio', path: '/', heading: 'Início' },
   { name: 'nova-atividade', path: '/', heading: 'Nova atividade', open: openActivityDialog },
   { name: 'amigos', path: '/amigos', heading: 'Amigos', exact: true },
+  { name: 'ranking', path: '/amigos/ranking', heading: 'Ranking', exact: true },
   { name: 'perfil', path: '/perfil', heading: 'Meu perfil' },
   { name: 'usuarios', path: '/usuarios', heading: 'Usuários' },
   { name: 'whatsapp', path: '/whatsapp', heading: 'WhatsApp' },

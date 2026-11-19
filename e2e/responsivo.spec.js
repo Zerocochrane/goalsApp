@@ -49,6 +49,7 @@ const SCREENS = [
     ready: (p) => p.getByRole('heading', { name: 'WhatsApp' }),
   },
   { name: 'amigos', path: '/amigos', ready: (p) => p.locator('.friends-page .user-item') },
+  { name: 'ranking', path: '/amigos/ranking', ready: (p) => p.locator('.ranking-row-you') },
   { name: 'perfil', path: '/perfil', ready: (p) => p.getByRole('heading', { name: 'Meu perfil' }) },
   {
     name: 'validar',

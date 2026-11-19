@@ -198,7 +198,9 @@ internos são aceitos no `redirect`.
   com as migrations reais — login/cookie/JWT e rate limit, permissões (master × usuário ×
   sem login), usuários e perfil, atividades (validação, isolamento entre usuários, versões),
   calendário, validação pelo link (concluída, já validada, expirada, de outra pessoa),
-  sequência e amigos (pedido → aceitar/recusar/cancelar → desfazer, duplicidade, privacidade).
+  sequência, amigos (pedido → aceitar/recusar/cancelar → desfazer, duplicidade, privacidade)
+  e ranking (só amigos aceitos, empates, sem atividades, só números agregados). O cálculo do
+  ranking tem testes unitários próprios em `server/test/leaderboard.test.js`.
 - **E2E** ([`e2e/`](e2e/)): sobe `server/index.js` servindo o build, na porta 4199 (ou
   `E2E_PORT`, para rodar duas suítes ao mesmo tempo), com banco próprio em `e2e/.data/` (apagado a cada execução) e WhatsApp desligado.
   - `fluxo.spec.js`: login → criar atividade → validar pelo link → dia verde; e link expirado →
@@ -206,6 +208,8 @@ internos são aceitos no `redirect`.
     então o teste não depende da hora em que roda.
   - `amigos.spec.js`: dois usuários viram amigos pela tela (contador na aba, aceitar, remover
     com confirmação), recusar e cancelar pedidos, sem expor atividades nem telefone.
+  - `ranking.spec.js`: ranking por sequência e mês com pódio, "Você" destacado, quem não tem
+    atividades no fim, estado vazio e atualização ao voltar para a aba.
   - `revisao.spec.js`: todas as telas em claro e escuro, no celular (360 px), tablet e desktop —
     textos em pt-BR, cores do tema e nenhuma rolagem horizontal. Grava um print de cada tela em
     `test-results/`.

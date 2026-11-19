@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthContext.jsx';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
 import Field from '../components/Field.jsx';
+import FriendsTabs from '../components/FriendsTabs.jsx';
 import { api } from '../lib/api.js';
 import { TIME_ZONE } from '../lib/dates.js';
 import { apiErrorMessage, apiFieldErrors } from '../lib/errors.js';
@@ -159,6 +160,7 @@ export default function FriendsPage() {
 
   return (
     <section className="friends-page">
+      <FriendsTabs />
       <div className="page-header">
         <div>
           <h1>{t.friends.title}</h1>

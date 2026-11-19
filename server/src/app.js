@@ -14,6 +14,7 @@ import { whatsappRouter } from './whatsapp/routes.js';
 import { occurrencesRouter } from './occurrences/routes.js';
 import { streakRouter } from './streak/routes.js';
 import { friendsRouter } from './friends/routes.js';
+import { leaderboardRouter } from './leaderboard/routes.js';
 
 // Build do React (gerado por `npm run build`). Pode ser trocado com CLIENT_DIST.
 const DEFAULT_CLIENT_DIST = path.resolve(
@@ -71,6 +72,7 @@ export function createApp({ clientDist = process.env.CLIENT_DIST || DEFAULT_CLIE
   app.use('/api/occurrences', occurrencesRouter()); // validação pelo link do WhatsApp
   app.use('/api/streak', streakRouter()); // sequência do próprio usuário
   app.use('/api/friends', friendsRouter()); // amigos e pedidos de amizade
+  app.use('/api/leaderboard', leaderboardRouter()); // ranking entre amigos (só números)
   app.use('/api/whatsapp', whatsappRouter()); // somente admin master
 
   app.use('/api', (_req, res) => {
