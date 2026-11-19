@@ -49,11 +49,12 @@ export default function MonthCalendar() {
   const scrollToDetailRef = useRef(false);
 
   const { days, refreshing, loadError, reload } = useCalendarDays(start, end);
-  const { open, notice, setNotice, dialog } = useActivityDialog({
-    reload,
-    refreshing,
-    fallbackRef: titleRef,
-  });
+  const { open, complete, completingId, notice, noticeIsError, setNotice, dialog } =
+    useActivityDialog({
+      reload,
+      refreshing,
+      fallbackRef: titleRef,
+    });
 
   const selectedDay = days?.find((day) => day.date === selectedDate) ?? null;
   // Dia que recebe o Tab na grade (os outros entram pelas setas)
@@ -149,7 +150,11 @@ export default function MonthCalendar() {
 
       <StatusLegend />
 
-      <p className="notice week-notice" role="status" aria-live="polite">
+      <p
+        className={`notice week-notice${noticeIsError ? ' notice-error' : ''}`}
+        role="status"
+        aria-live="polite"
+      >
         {notice}
       </p>
 
@@ -198,8 +203,14 @@ export default function MonthCalendar() {
                 titleId={`${detailId}-title`}
                 onCreate={(event) => open(event, { date: selectedDay.date })}
                 onEdit={(event, item) =>
-                  open(event, { date: selectedDay.date, activityId: item.activityId })
+                  open(event, {
+                    date: selectedDay.date,
+                    activityId: item.activityId,
+                    item: selectedDay.isToday ? item : null,
+                  })
                 }
+                onComplete={complete}
+                completingId={completingId}
               />
             ) : (
               <p className="muted month-detail-hint">{t.calendar.detailHint}</p>
@@ -269,7 +280,7 @@ function MonthDay({ day, outside, selected, tabbable, detailId, onSelect }) {
   );
 }
 
-function DayDetail({ day, titleId, onCreate, onEdit }) {
+function DayDetail({ day, titleId, onCreate, onEdit, onComplete, completingId }) {
   return (
     <>
       <h3 id={titleId} className="week-day-header month-detail-header">
@@ -279,7 +290,12 @@ function DayDetail({ day, titleId, onCreate, onEdit }) {
       </h3>
       {day.isPast && <p className="muted month-detail-readonly">{t.calendar.pastReadOnly}</p>}
       {/* Dias passados: só leitura (sem editar nem adicionar) */}
-      <DayActivities day={day} onEdit={day.isPast ? null : onEdit} />
+      <DayActivities
+        day={day}
+        onEdit={day.isPast ? null : onEdit}
+        onComplete={onComplete}
+        completingId={completingId}
+      />
       {!day.isPast && <AddActivityButton date={day.date} onClick={onCreate} />}
     </>
   );

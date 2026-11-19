@@ -7,6 +7,8 @@
 import { Router } from 'express';
 import { prisma } from '../db/prisma.js';
 import { addDays, formatTime, todayInSaoPaulo } from './recurrence.js';
+import { completeActivity } from '../occurrences/complete.js';
+import { dayCelebrationPending } from '../day/celebration.js';
 import {
   parseActivityName,
   parseHour,
@@ -173,6 +175,21 @@ export function activitiesRouter() {
     if (!activity) return res.status(404).json({ error: NOT_FOUND });
     // `previousId` ajuda o cliente quando a edição gerou uma nova versão (novo id)
     res.json({ activity: toPublic(activity), previousId: id });
+  });
+
+  // Conclui a atividade de hoje pelo site (mesmas regras do link do WhatsApp).
+  // Ao concluir, `diaConcluidoParaComemorar` diz se hoje acabou de ficar todo concluído.
+  router.post('/:id/complete', async (req, res) => {
+    const { code, httpStatus, message, occurrence } = await completeActivity({
+      prisma,
+      activityId: parseId(req.params.id) ?? 0,
+      userId: req.user.id,
+    });
+    const body = { code, message, occurrence };
+    if (code === 'concluida')
+      body.diaConcluidoParaComemorar = await dayCelebrationPending(req.user.id);
+    if (httpStatus >= 400) body.error = message;
+    res.status(httpStatus).json(body);
   });
 
   router.delete('/:id', async (req, res) => {

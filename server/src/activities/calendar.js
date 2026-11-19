@@ -4,6 +4,7 @@
 import { Router } from 'express';
 import { prisma } from '../db/prisma.js';
 import { buildCalendar, daysBetween, isValidDate, todayInSaoPaulo } from './recurrence.js';
+import { completionFields } from '../occurrences/complete.js';
 
 export const CALENDAR_MAX_DAYS = 93;
 
@@ -42,6 +43,8 @@ export function calendarRouter() {
           startDate: true,
           endDate: true,
           active: true,
+          createdAt: true,
+          updatedAt: true,
         },
       }),
       prisma.taskOccurrence.findMany({
@@ -60,13 +63,30 @@ export function calendarRouter() {
       }),
     ]);
 
-    const today = todayInSaoPaulo();
-    res.json({
-      start,
-      end,
-      today,
-      days: buildCalendar({ activities, occurrences, start, end, today }),
-    });
+    const now = new Date();
+    const today = todayInSaoPaulo(now);
+    const days = buildCalendar({ activities, occurrences, start, end, today });
+
+    // Atividades de hoje: se/quando podem ser concluídas pelo site (relógio do servidor)
+    const activityById = new Map(activities.map((a) => [a.id, a]));
+    const occurrenceById = new Map(occurrences.map((o) => [o.id, o]));
+    for (const day of days) {
+      if (!day.isToday) continue;
+      for (const item of day.activities) {
+        Object.assign(
+          item,
+          completionFields({
+            activity: activityById.get(item.activityId) ?? null,
+            occurrence: item.occurrence ? occurrenceById.get(item.occurrence.id) : null,
+            date: today,
+            now,
+          }),
+        );
+      }
+    }
+
+    // `now`: relógio do servidor, para o app não depender do relógio do aparelho
+    res.json({ start, end, today, now: now.toISOString(), days });
   });
 
   return router;

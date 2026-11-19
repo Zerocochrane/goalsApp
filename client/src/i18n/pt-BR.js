@@ -298,6 +298,14 @@ const ptBR = {
     dayCount: (done, total) => `${done}/${total}`,
     detailHint: 'Toque em um dia para ver as atividades.',
     pastReadOnly: 'Dia passado: só leitura.',
+    // Concluir pelo site (atividades de hoje, do horário até 1 hora depois)
+    complete: 'Concluir atividade',
+    completing: 'Concluindo…',
+    completed: 'Atividade concluída!',
+    availableAt: (time) => `Disponível às ${time}`,
+    timeLeft: (minutes) => (minutes === 1 ? 'falta 1 min' : `faltam ${minutes} min`),
+    completeAria: (name, left) => `Concluir ${name} (${left})`,
+    statusLabel: 'Status de hoje',
     legendLabel: 'Legenda das cores',
     legend: {
       concluida: 'Concluída',

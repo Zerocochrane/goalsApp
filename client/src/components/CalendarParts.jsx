@@ -1,6 +1,7 @@
 // Peças compartilhadas pelas visões de semana e de mês do calendário.
 import { DAY_STATUS_ICON, STATUS_ICON } from '../lib/calendarStatus.js';
 import { formatWeekdayDayMonth } from '../lib/dates.js';
+import { completionState, useServerNow } from '../lib/serverClock.js';
 import t from '../i18n/pt-BR.js';
 
 /** Legenda das cores/ícones dos status. */
@@ -50,19 +51,20 @@ export function CalendarLoadState({ loadError, onRetry }) {
   );
 }
 
-/** Lista de atividades de um dia; com `onEdit`, as editáveis abrem o modal ao clicar. */
-export function DayActivities({ day, onEdit }) {
+/**
+ * Lista de atividades de um dia; com `onEdit`, as editáveis abrem o modal ao clicar.
+ * Com `onComplete`, as de hoje dentro do prazo ganham o atalho ✓ (concluir).
+ */
+export function DayActivities({ day, onEdit, onComplete, completingId = null }) {
   if (day.activities.length === 0) {
     return <p className="week-day-empty muted">{t.calendar.empty}</p>;
   }
   return (
     <ul className="week-activities">
       {day.activities.map((item) => (
-        <li
-          key={`${item.activityId}-${item.occurrence?.id ?? 'prevista'}`}
-          className="week-activity"
-          data-status={item.status}
-        >
+        // Chave estável (uma linha por atividade no dia): a linha continua no DOM quando
+        // a ocorrência é criada/concluída, e o foco não se perde
+        <li key={item.activityId} className="week-activity" data-status={item.status}>
           {item.editable && onEdit ? (
             <button
               type="button"
@@ -81,9 +83,47 @@ export function DayActivities({ day, onEdit }) {
               <ActivityLabel item={item} />
             </div>
           )}
+          {onComplete && day.isToday && item.disponivelEm && (
+            <CompleteShortcut
+              item={item}
+              busy={completingId === item.activityId}
+              disabled={completingId !== null}
+              onClick={(event) => onComplete(event, item, day.date)}
+            />
+          )}
         </li>
       ))}
     </ul>
+  );
+}
+
+/**
+ * Atalho ✓ na linha da atividade de hoje: aparece só dentro da janela (do horário até
+ * o prazo), sozinho, pelo relógio do servidor. Alvo de 44px.
+ */
+function CompleteShortcut({ item, busy, disabled, onClick }) {
+  const now = useServerNow();
+  const state = completionState(item, now);
+  if (state?.phase !== 'open') return null;
+  const left = t.calendar.timeLeft(state.minutesLeft);
+  return (
+    <button
+      type="button"
+      className="week-activity-complete"
+      onClick={onClick}
+      disabled={disabled}
+      aria-busy={busy}
+      aria-label={t.calendar.completeAria(item.name, left)}
+      title={`${t.calendar.complete} (${left})`}
+    >
+      {busy ? (
+        <span className="spinner spinner-small" aria-hidden="true" />
+      ) : (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M5 12.5l4.5 4.5L19 7.5" />
+        </svg>
+      )}
+    </button>
   );
 }
 

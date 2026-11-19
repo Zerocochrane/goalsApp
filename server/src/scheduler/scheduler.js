@@ -56,7 +56,7 @@ function floorToMinute(date) {
  * daquele dia. Versões encerradas usam `createdAt`, porque o encerramento também muda
  * `updatedAt`.
  */
-function effectiveFrom(activity) {
+export function effectiveFrom(activity) {
   return floorToMinute(activity.active ? activity.updatedAt : activity.createdAt);
 }
 

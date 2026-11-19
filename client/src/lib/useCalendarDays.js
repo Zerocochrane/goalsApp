@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from './api.js';
 import { apiErrorMessage } from './errors.js';
+import { syncServerClock } from './serverClock.js';
 
 // Atualização automática: a cada 60s com a aba visível e ao voltar para a aba
 const POLL_INTERVAL_MS = 60_000;
@@ -31,6 +32,7 @@ export default function useCalendarDays(start, end) {
     backgroundRef.current = false;
     api(`/calendar?start=${start}&end=${end}`)
       .then((data) => {
+        if (data?.now) syncServerClock(data.now);
         if (!ignore) setResult({ key: requestKey, range, days: data.days });
       })
       .catch((err) => {

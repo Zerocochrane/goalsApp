@@ -2,6 +2,9 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import ConfirmDialog from './ConfirmDialog.jsx';
 import Field from './Field.jsx';
 import { api } from '../lib/api.js';
+import { STATUS_ICON } from '../lib/calendarStatus.js';
+import { completeActivity } from '../lib/completeActivity.js';
+import { completionState, useServerNow } from '../lib/serverClock.js';
 import { formatWeekdayDayMonth, todayInSaoPaulo, weekdayOf } from '../lib/dates.js';
 import { apiErrorMessage, apiFieldErrors } from '../lib/errors.js';
 import useMediaQuery, { SHEET_QUERY } from '../lib/useMediaQuery.js';
@@ -34,16 +37,27 @@ function validate({ name, time, weekdays }) {
  * - Criação: `date` é o dia clicado; ele vem marcado nos dias da semana e é o início
  *   da recorrência.
  * - Edição: `activityId` é carregado de GET /api/activities/:id e pode ser excluído.
+ * - Atividade de hoje (`item` do calendário): mostra o status e "Concluir atividade",
+ *   que se habilita sozinho no horário e some ao fim do prazo (relógio do servidor).
  *
  * Usa <dialog>.showModal(): o resto da página fica inerte (foco preso) e Esc fecha.
- * `onDone(mensagem)` é chamado depois de salvar/excluir; `onClose()` ao cancelar.
+ * `onDone(mensagem)` é chamado depois de salvar/excluir/concluir; `onClose()` ao cancelar;
+ * `onChanged()` quando a conclusão foi recusada (o calendário recarrega o status).
  */
-export default function ActivityDialog({ date, activityId = null, onClose, onDone }) {
+export default function ActivityDialog({
+  date,
+  activityId = null,
+  item = null,
+  onClose,
+  onDone,
+  onChanged,
+}) {
   const isEdit = activityId !== null;
   const ref = useRef(null);
   const nameRef = useRef(null);
   const timeRef = useRef(null);
   const weekdaysRef = useRef(null);
+  const completeRef = useRef(null);
   const titleId = useId();
   const descId = useId();
   const weekdaysErrorId = useId();
@@ -59,6 +73,13 @@ export default function ActivityDialog({ date, activityId = null, onClose, onDon
   const [busy, setBusy] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [removeError, setRemoveError] = useState('');
+  const [completing, setCompleting] = useState(false);
+  const [completeError, setCompleteError] = useState('');
+  // Concluir pelo site: só para a atividade de hoje, pelo relógio do servidor
+  const now = useServerNow(Boolean(item?.disponivelEm));
+  const completion = completionState(item, now);
+  // Dentro do prazo ao abrir: o foco vai para "Concluir" (não abre o teclado no celular)
+  const focusCompleteRef = useRef(completion?.phase === 'open');
 
   // Abre como modal ao montar e fecha antes de sair do DOM
   useLayoutEffect(() => {
@@ -69,7 +90,9 @@ export default function ActivityDialog({ date, activityId = null, onClose, onDon
 
   // Foco inicial no nome (na edição, quando os dados chegarem)
   useEffect(() => {
-    if (loadState === 'ready') nameRef.current?.focus();
+    if (loadState !== 'ready') return;
+    if (focusCompleteRef.current && completeRef.current) completeRef.current.focus();
+    else nameRef.current?.focus();
   }, [loadState]);
 
   useEffect(() => {
@@ -153,6 +176,22 @@ export default function ActivityDialog({ date, activityId = null, onClose, onDon
     }
   }
 
+  async function handleComplete() {
+    if (busy) return;
+    setBusy(true);
+    setCompleting(true);
+    setCompleteError('');
+    const { ok, message } = await completeActivity(item.activityId);
+    if (ok) {
+      onDone(message);
+      return;
+    }
+    setCompleteError(message);
+    setCompleting(false);
+    setBusy(false);
+    onChanged?.();
+  }
+
   async function handleRemove() {
     setBusy(true);
     setRemoveError('');
@@ -215,6 +254,48 @@ export default function ActivityDialog({ date, activityId = null, onClose, onDon
           <p id={descId} className="muted activity-dialog-desc">
             {isEdit ? t.activity.editStartsOn : t.activity.startsOn(formatWeekdayDayMonth(date))}
           </p>
+
+          {item && (
+            <section className="activity-complete" aria-label={t.calendar.statusLabel}>
+              <p className="activity-complete-status" data-status={item.status}>
+                <span className="status-icon" aria-hidden="true">
+                  {STATUS_ICON[item.status]}
+                </span>
+                <span>
+                  {t.calendar.statusLabel}:{' '}
+                  <strong>{t.calendar.activityStatus[item.status]}</strong>
+                </span>
+              </p>
+              {completion && (
+                <div className="activity-complete-action">
+                  <button
+                    ref={completeRef}
+                    type="button"
+                    className="button button-primary activity-complete-button"
+                    onClick={handleComplete}
+                    disabled={busy || completion.phase !== 'open'}
+                  >
+                    {completing && <span className="spinner spinner-small" aria-hidden="true" />}
+                    {completing
+                      ? t.calendar.completing
+                      : completion.phase === 'open'
+                        ? t.calendar.complete
+                        : t.calendar.availableAt(completion.from)}
+                  </button>
+                  {completion.phase === 'open' && (
+                    <span className="activity-complete-left">
+                      {t.calendar.timeLeft(completion.minutesLeft)}
+                    </span>
+                  )}
+                </div>
+              )}
+              {completeError && (
+                <p className="form-error" role="alert">
+                  {completeError}
+                </p>
+              )}
+            </section>
+          )}
 
           {loadState === 'loading' ? (
             <div className="inline-loading" role="status">
@@ -290,10 +371,10 @@ export default function ActivityDialog({ date, activityId = null, onClose, onDon
             </button>
             {loadState !== 'error' && (
               <button type="submit" className="button button-primary" disabled={disabled}>
-                {busy && !confirmOpen && (
+                {busy && !confirmOpen && !completing && (
                   <span className="spinner spinner-small" aria-hidden="true" />
                 )}
-                {busy && !confirmOpen ? t.activity.saving : t.activity.save}
+                {busy && !confirmOpen && !completing ? t.activity.saving : t.activity.save}
               </button>
             )}
           </div>

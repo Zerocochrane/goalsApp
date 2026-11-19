@@ -41,11 +41,12 @@ export default function WeekCalendar() {
   const titleRef = useRef(null);
 
   const { days, refreshing, loadError, reload } = useCalendarDays(weekStart, weekEnd);
-  const { open, notice, setNotice, dialog } = useActivityDialog({
-    reload,
-    refreshing,
-    fallbackRef: titleRef,
-  });
+  const { open, complete, completingId, notice, noticeIsError, setNotice, dialog } =
+    useActivityDialog({
+      reload,
+      refreshing,
+      fallbackRef: titleRef,
+    });
 
   // Celular: ao abrir o app na semana atual, rola até o card de hoje se ele não
   // estiver inteiro na tela (descontando o cabeçalho e a barra da semana fixos)
@@ -125,7 +126,11 @@ export default function WeekCalendar() {
 
       <StatusLegend />
 
-      <p className="notice week-notice" role="status" aria-live="polite">
+      <p
+        className={`notice week-notice${noticeIsError ? ' notice-error' : ''}`}
+        role="status"
+        aria-live="polite"
+      >
         {notice}
       </p>
 
@@ -145,8 +150,14 @@ export default function WeekCalendar() {
                 onToggle={() => toggleDay(day.date)}
                 onCreate={(event) => open(event, { date: day.date })}
                 onEdit={(event, item) =>
-                  open(event, { date: day.date, activityId: item.activityId })
+                  open(event, {
+                    date: day.date,
+                    activityId: item.activityId,
+                    item: day.isToday ? item : null,
+                  })
                 }
+                onComplete={complete}
+                completingId={completingId}
               />
             );
           })}
@@ -158,7 +169,16 @@ export default function WeekCalendar() {
   );
 }
 
-function DayColumn({ day, collapsible, expanded, onToggle, onCreate, onEdit }) {
+function DayColumn({
+  day,
+  collapsible,
+  expanded,
+  onToggle,
+  onCreate,
+  onEdit,
+  onComplete,
+  completingId,
+}) {
   const bodyId = useId();
   const classes = ['week-day', 'card'];
   if (!expanded) classes.push('week-day-collapsed');
@@ -212,7 +232,12 @@ function DayColumn({ day, collapsible, expanded, onToggle, onCreate, onEdit }) {
       </h3>
 
       <div id={bodyId} className="week-day-body" hidden={!expanded}>
-        <DayActivities day={day} onEdit={onEdit} />
+        <DayActivities
+          day={day}
+          onEdit={onEdit}
+          onComplete={onComplete}
+          completingId={completingId}
+        />
       </div>
 
       {!day.isPast && <AddActivityButton date={day.date} onClick={onCreate} />}
