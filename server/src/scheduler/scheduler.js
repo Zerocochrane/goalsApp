@@ -168,7 +168,7 @@ export function createScheduler({
       where: { status: 'pendente', notifiedAt: null, expiresAt: { gt: at } },
       include: {
         activity: { select: { name: true } },
-        user: { select: { phone: true } },
+        user: { select: { phone: true, phoneVerifiedAt: true, status: true } },
       },
       orderBy: { scheduledAt: 'asc' },
     });
@@ -179,7 +179,11 @@ export function createScheduler({
       const last = lastAttempt.get(occurrence.id);
       if (last !== undefined && at.getTime() - last < RETRY_INTERVAL_MS) continue;
       const phone = occurrence.user?.phone;
-      if (!phone) continue; // sem telefone: fica pendente (e expira) sem envio
+      // Sem telefone, telefone não confirmado (cadastro) ou conta não aprovada: fica
+      // pendente (e expira) sem envio
+      if (!phone || !occurrence.user.phoneVerifiedAt || occurrence.user.status !== 'ativo') {
+        continue;
+      }
 
       inFlight.add(occurrence.id);
       const text = buildMessage(occurrence.activity.name, validationLink(appUrl, occurrence.token));

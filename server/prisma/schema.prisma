@@ -17,20 +17,51 @@ enum TaskStatus {
 }
 
 model User {
-  id                   Int      @id @default(autoincrement())
-  username             String   @unique
+  id                   Int        @id @default(autoincrement())
+  username             String     @unique
   passwordHash         String
   name                 String
   phone                String? // WhatsApp em formato E.164 (ex.: +5532999999999)
-  isMaster             Boolean  @default(false)
-  lastCelebratedStreak Int      @default(0)
-  sessionVersion       Int      @default(0) // muda ao trocar a senha: derruba sessões antigas
-  createdAt            DateTime @default(now())
+  isMaster             Boolean    @default(false)
+  lastCelebratedStreak Int        @default(0)
+  sessionVersion       Int        @default(0) // muda ao trocar a senha: derruba sessões antigas
+  // Conta criada pelo cadastro nasce `pendente` e só usa o app depois de `ativo`
+  status               UserStatus @default(ativo)
+  // Telefone confirmado por código no WhatsApp (sem isso a conta não recebe lembretes).
+  // Telefone definido pelo master já nasce confirmado.
+  phoneVerifiedAt      DateTime?
+  createdBy            UserOrigin @default(master)
+  createdAt            DateTime   @default(now())
 
-  activities       Activity[]
-  occurrences      TaskOccurrence[]
-  friendsRequested Friendship[]     @relation("FriendshipRequester")
-  friendsReceived  Friendship[]     @relation("FriendshipAddressee")
+  activities        Activity[]
+  occurrences       TaskOccurrence[]
+  friendsRequested  Friendship[]       @relation("FriendshipRequester")
+  friendsReceived   Friendship[]       @relation("FriendshipAddressee")
+  phoneVerification PhoneVerification?
+}
+
+enum UserStatus {
+  ativo
+  pendente
+}
+
+enum UserOrigin {
+  master // criado pelo admin master
+  cadastro // criado pela própria pessoa em /cadastro
+}
+
+// Código de 6 dígitos enviado pelo WhatsApp para confirmar o telefone (um por usuário).
+// Só o hash fica no banco; vale 10 minutos e aceita até 5 tentativas.
+model PhoneVerification {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique
+  phone     String // número para o qual o código foi enviado (E.164)
+  codeHash  String
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now()) // envio do código (limita reenvios)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Activity {

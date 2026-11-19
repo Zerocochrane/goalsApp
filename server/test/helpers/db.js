@@ -45,6 +45,7 @@ export async function createTestDatabase(name) {
       await prisma.taskOccurrence.deleteMany();
       await prisma.activity.deleteMany();
       await prisma.messageLog.deleteMany();
+      await prisma.phoneVerification.deleteMany();
       await prisma.user.deleteMany();
     },
     async destroy() {

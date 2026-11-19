@@ -17,6 +17,8 @@ process.env.DATABASE_URL = `file:${path.join(E2E_DATA_DIR, 'e2e.db')}`;
 process.env.E2E_ADMIN_USER = 'admin';
 process.env.E2E_ADMIN_PASSWORD = 'admin-e2e-123';
 process.env.WA_DISABLED = 'true';
+// Mesmo segredo no servidor e nos testes (o teste grava o hash de um código conhecido)
+process.env.JWT_SECRET = 'segredo-e2e-com-mais-de-trinta-e-dois-caracteres';
 
 export default defineConfig({
   testDir: 'e2e',
@@ -44,7 +46,7 @@ export default defineConfig({
       APP_URL: BASE_URL,
       DATABASE_URL: process.env.DATABASE_URL,
       E2E_DATA_DIR,
-      JWT_SECRET: 'segredo-e2e-com-mais-de-trinta-e-dois-caracteres',
+      JWT_SECRET: process.env.JWT_SECRET,
       COOKIE_SECURE: 'false',
       MASTER_ADMIN_USER: process.env.E2E_ADMIN_USER,
       MASTER_ADMIN_PASSWORD: process.env.E2E_ADMIN_PASSWORD,

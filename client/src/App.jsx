@@ -8,6 +8,7 @@ import FriendsPage from './pages/FriendsPage.jsx';
 import HomePage from './pages/HomePage.jsx';
 import NotFoundPage from './pages/NotFoundPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
+import SignupPage from './pages/SignupPage.jsx';
 import RankingPage from './pages/RankingPage.jsx';
 import UsersPage from './pages/UsersPage.jsx';
 import ValidatePage from './pages/ValidatePage.jsx';
@@ -19,6 +20,7 @@ export default function App() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/cadastro" element={<SignupPage />} />
           <Route element={<RequireAuth />}>
             <Route element={<Layout />}>
               <Route index element={<HomePage />} />

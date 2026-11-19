@@ -7,6 +7,13 @@ import { publicUserSelect, requireMaster } from '../auth/middleware.js';
 import { hashPassword, verifyPassword } from '../auth/password.js';
 import { setSessionCookie } from '../auth/session.js';
 import { parseName, parsePassword, parsePhone, parseUsername } from './validation.js';
+import { codeCheckLimiter, codeSendLimiters } from '../signup/limits.js';
+import {
+  checkVerificationCode,
+  maskPhone,
+  sendCodeError,
+  sendVerificationCode,
+} from '../signup/verification.js';
 
 const USERNAME_TAKEN = 'Já existe um usuário com esse nome de usuário';
 
@@ -51,7 +58,23 @@ function validationError(res, errors) {
   return res.status(400).json({ error: Object.values(errors)[0], fields: errors });
 }
 
-export function usersRouter() {
+const USER_NOT_FOUND = 'Usuário não encontrado';
+const NOT_PENDING = 'Este usuário não está aguardando aprovação';
+
+/**
+ * Confirmação do telefone quando o número muda. `trusted`: quem definiu o número é
+ * confiável (o master, ou um usuário criado por ele) e o número já vale confirmado;
+ * senão (cadastro), precisa de um código novo.
+ */
+function phoneChange(phone, { trusted }) {
+  return { phoneVerifiedAt: phone && trusted ? new Date() : null };
+}
+
+function appLink(pathname = '') {
+  return `${String(process.env.APP_URL || '').replace(/\/+$/, '')}${pathname}`;
+}
+
+export function usersRouter({ send }) {
   const router = Router();
   router.use(requireMaster);
 
@@ -69,7 +92,7 @@ export function usersRouter() {
     try {
       // Usuários criados aqui nunca são master: só administram os próprios dados.
       const user = await prisma.user.create({
-        data: { ...data, isMaster: false },
+        data: { ...data, ...phoneChange(data.phone, { trusted: true }), isMaster: false },
         select: publicUserSelect,
       });
       res.status(201).json({ user });
@@ -89,6 +112,14 @@ export function usersRouter() {
 
     const { data, errors } = await readUserInput(req.body ?? {}, { partial: true });
     if (Object.keys(errors).length) return validationError(res, errors);
+
+    const current = await prisma.user.findUnique({ where: { id }, select: { phone: true } });
+    if (!current) return res.status(404).json({ error: USER_NOT_FOUND });
+    // Telefone trocado pelo master já vale confirmado; o mesmo número não muda nada
+    if (data.phone !== undefined && data.phone !== current.phone) {
+      Object.assign(data, phoneChange(data.phone, { trusted: true }));
+      await prisma.phoneVerification.deleteMany({ where: { userId: id } });
+    }
 
     try {
       const user = await prisma.user.update({ where: { id }, data, select: publicUserSelect });
@@ -124,6 +155,49 @@ export function usersRouter() {
     res.status(204).end();
   });
 
+  // Quantos cadastros aguardam aprovação (contador da aba "Usuários")
+  router.get('/pending-count', async (_req, res) => {
+    const count = await prisma.user.count({ where: { status: 'pendente' } });
+    res.json({ count });
+  });
+
+  router.post('/:id/approve', async (req, res) => {
+    const id = parseId(req.params.id);
+    if (!id) return res.status(404).json({ error: USER_NOT_FOUND });
+    const { count } = await prisma.user.updateMany({
+      where: { id, status: 'pendente' },
+      data: { status: 'ativo' },
+    });
+    const user = await prisma.user.findUnique({ where: { id }, select: publicUserSelect });
+    if (!user) return res.status(404).json({ error: USER_NOT_FOUND });
+    if (count === 0) return res.status(409).json({ error: NOT_PENDING });
+
+    // Avisa a pessoa (só se o número já foi confirmado por ela)
+    if (user.phone && user.phoneVerifiedAt) {
+      const text = `Sua conta no Goals foi aprovada! Entre com o usuário @${user.username} em ${appLink('/login')}`;
+      Promise.resolve()
+        .then(() => send(user.phone, text))
+        .catch((err) => console.error('[usuarios] falha ao avisar aprovação:', err.message));
+    }
+    res.json({ user });
+  });
+
+  // Recusar apaga a conta pendente (o nome de usuário fica livre de novo)
+  router.post('/:id/reject', async (req, res) => {
+    const id = parseId(req.params.id);
+    if (!id) return res.status(404).json({ error: USER_NOT_FOUND });
+    const { count } = await prisma.user.deleteMany({
+      where: { id, status: 'pendente', isMaster: false },
+    });
+    if (count === 0) {
+      const exists = await prisma.user.count({ where: { id } });
+      return exists
+        ? res.status(409).json({ error: NOT_PENDING })
+        : res.status(404).json({ error: USER_NOT_FOUND });
+    }
+    res.status(204).end();
+  });
+
   return router;
 }
 
@@ -143,7 +217,7 @@ const isChangingPassword = (body) =>
   typeof body?.newPassword === 'string' && body.newPassword !== '';
 
 /** "Meu perfil": o próprio usuário altera telefone e senha. */
-export function profileRouter() {
+export function profileRouter({ send }) {
   const router = Router();
 
   router.get('/', (req, res) => {
@@ -175,6 +249,16 @@ export function profileRouter() {
       }
       if (Object.keys(errors).length) return validationError(res, errors);
 
+      // Telefone novo: quem se cadastrou sozinho precisa confirmar o número de novo
+      // (evita usar o número de outra pessoa); quem o master criou segue confiável.
+      if (data.phone !== undefined && data.phone !== req.user.phone) {
+        Object.assign(
+          data,
+          phoneChange(data.phone, { trusted: req.user.createdBy !== 'cadastro' }),
+        );
+        await prisma.phoneVerification.deleteMany({ where: { userId: req.user.id } });
+      }
+
       if (changingPassword) {
         const current = await prisma.user.findUnique({
           where: { id: req.user.id },
@@ -198,6 +282,34 @@ export function profileRouter() {
       res.json({ user });
     },
   );
+
+  // Confirmação do telefone pelo próprio usuário (ex.: trocou o número no perfil)
+  // Antes dos limites: um pedido sem nada a confirmar não gasta o limite do IP
+  const requireUnverifiedPhone = (req, res, next) => {
+    if (req.user.phone && !req.user.phoneVerifiedAt) return next();
+    res.status(409).json({ error: 'Não há telefone para confirmar' });
+  };
+
+  router.post('/phone/send-code', requireUnverifiedPhone, ...codeSendLimiters, async (req, res) => {
+    const result = await sendVerificationCode(req.user, send);
+    if (result.retryAfter) {
+      return res.status(429).json({
+        error: 'Aguarde para pedir outro código.',
+        retryAfter: result.retryAfter,
+      });
+    }
+    res.json({ phone: maskPhone(req.user.phone), ...result });
+  });
+
+  router.post('/phone/verify', requireUnverifiedPhone, codeCheckLimiter, async (req, res) => {
+    const result = await checkVerificationCode(req.user, req.body?.code);
+    if (!result.ok) return sendCodeError(res, result);
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: publicUserSelect,
+    });
+    res.json({ user });
+  });
 
   return router;
 }

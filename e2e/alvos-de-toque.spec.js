@@ -8,6 +8,7 @@ const MIN = 44;
 
 const SCREENS = [
   { name: 'login', path: '/login', heading: 'Entrar', public: true },
+  { name: 'cadastro', path: '/cadastro', heading: 'Criar conta', public: true },
   { name: 'inicio', path: '/', heading: 'Início' },
   {
     name: 'nova-atividade',

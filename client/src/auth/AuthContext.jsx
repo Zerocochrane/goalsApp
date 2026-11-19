@@ -33,6 +33,11 @@ export function AuthProvider({ children }) {
     return user;
   }, []);
 
+  // Sessão aberta por outra rota (ex.: confirmação do telefone no cadastro aberto)
+  const signIn = useCallback((user) => {
+    setState({ status: 'authenticated', user });
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       await api('/auth/logout', { method: 'POST', skipAuthHandler: true });
@@ -47,8 +52,8 @@ export function AuthProvider({ children }) {
   }, []);
 
   const value = useMemo(
-    () => ({ ...state, login, logout, updateUser }),
-    [state, login, logout, updateUser],
+    () => ({ ...state, login, signIn, logout, updateUser }),
+    [state, login, signIn, logout, updateUser],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

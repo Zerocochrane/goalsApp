@@ -5,6 +5,7 @@ import Field from '../components/Field.jsx';
 import { api } from '../lib/api.js';
 import { apiErrorMessage, apiFieldErrors } from '../lib/errors.js';
 import { formatPhone } from '../lib/phone.js';
+import { notifyUsersChanged } from '../lib/users.js';
 import t from '../i18n/pt-BR.js';
 
 const EMPTY_FORM = { name: '', username: '', password: '', phone: '' };
@@ -137,6 +138,13 @@ export default function UsersPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [notice, setNotice] = useState('');
+  // 'all' | 'pending' (cadastros aguardando aprovação)
+  const [filter, setFilter] = useState('all');
+  const [busyId, setBusyId] = useState(null);
+  const [actionError, setActionError] = useState('');
+  const [toReject, setToReject] = useState(null);
+  const [rejecting, setRejecting] = useState(false);
+  const [rejectError, setRejectError] = useState('');
 
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -164,6 +172,45 @@ export default function UsersPage() {
     setNotice(wasEditing ? t.users.updated(saved.name) : t.users.created(saved.name));
     setFormState(null);
   }
+
+  async function handleApprove(target) {
+    setBusyId(target.id);
+    setNotice('');
+    setActionError('');
+    try {
+      const { user } = await api(`/users/${target.id}/approve`, { method: 'POST' });
+      setUsers((prev) => prev.map((u) => (u.id === user.id ? user : u)));
+      setNotice(t.users.approved(user.name));
+      notifyUsersChanged();
+    } catch (err) {
+      setActionError(apiErrorMessage(err));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function handleReject() {
+    setRejecting(true);
+    setRejectError('');
+    try {
+      await api(`/users/${toReject.id}/reject`, { method: 'POST' });
+      setUsers((prev) => prev.filter((u) => u.id !== toReject.id));
+      setNotice(t.users.rejected(toReject.name));
+      if (formState?.user?.id === toReject.id) setFormState(null);
+      setToReject(null);
+      notifyUsersChanged();
+    } catch (err) {
+      setRejectError(apiErrorMessage(err));
+    } finally {
+      setRejecting(false);
+    }
+  }
+
+  const pendingCount = users?.filter((u) => u.status === 'pendente').length ?? 0;
+  // Sem pendentes, o filtro volta para "Todos"
+  const activeFilter = pendingCount > 0 ? filter : 'all';
+  const visibleUsers =
+    users && activeFilter === 'pending' ? users.filter((u) => u.status === 'pendente') : users;
 
   async function handleDelete() {
     setDeleting(true);
@@ -205,6 +252,34 @@ export default function UsersPage() {
       <p className="notice" role="status" aria-live="polite">
         {notice}
       </p>
+      {actionError && (
+        <p className="form-error" role="alert">
+          {actionError}
+        </p>
+      )}
+
+      {pendingCount > 0 && (
+        <div className="segmented users-filter" role="group" aria-label={t.users.filterLabel}>
+          <button
+            type="button"
+            className="segmented-option"
+            aria-pressed={activeFilter === 'all'}
+            onClick={() => setFilter('all')}
+          >
+            {t.users.filterAll}
+          </button>
+          <button
+            type="button"
+            className="segmented-option"
+            aria-pressed={activeFilter === 'pending'}
+            onClick={() => setFilter('pending')}
+          >
+            <span className="users-filter-long">{t.users.filterPending}</span>
+            <span className="users-filter-short">{t.users.filterPendingShort}</span>
+            <span className="users-filter-count">{pendingCount}</span>
+          </button>
+        </div>
+      )}
 
       {formState && (
         <UserForm
@@ -227,23 +302,63 @@ export default function UsersPage() {
           <span className="spinner" aria-hidden="true" />
           <span>{t.app.loading}</span>
         </div>
-      ) : users.length === 0 ? (
-        <p className="muted">{t.users.empty}</p>
+      ) : visibleUsers.length === 0 ? (
+        <p className="muted">{activeFilter === 'pending' ? t.users.emptyPending : t.users.empty}</p>
       ) : (
         <ul className="user-list" aria-label={t.users.listLabel}>
-          {users.map((u) => (
-            <li key={u.id} className="card user-item">
+          {visibleUsers.map((u) => (
+            <li
+              key={u.id}
+              className={`card user-item${u.status === 'pendente' ? ' user-item-pending' : ''}`}
+            >
               <div className="user-info">
                 <p className="user-name">
                   {u.name}
                   {u.isMaster && <span className="badge">{t.users.masterBadge}</span>}
                   {u.id === me.id && <span className="badge badge-muted">{t.users.youBadge}</span>}
+                  {u.status === 'pendente' && (
+                    <span className="badge badge-warning">{t.users.pendingBadge}</span>
+                  )}
+                  {u.status !== 'pendente' && u.createdBy === 'cadastro' && (
+                    <span className="badge badge-muted">{t.users.signupBadge}</span>
+                  )}
                 </p>
                 <p className="muted user-meta">
                   @{u.username} · {u.phone ? formatPhone(u.phone) : t.users.noPhone}
+                  {u.phone && !u.phoneVerifiedAt && (
+                    <span className="user-unverified"> · {t.users.phoneUnverified}</span>
+                  )}
                 </p>
               </div>
               <div className="user-actions">
+                {u.status === 'pendente' && (
+                  <>
+                    <button
+                      type="button"
+                      className="button button-primary"
+                      aria-label={t.users.approveAria(u.name)}
+                      onClick={() => handleApprove(u)}
+                      disabled={busyId === u.id}
+                    >
+                      {busyId === u.id && (
+                        <span className="spinner spinner-small" aria-hidden="true" />
+                      )}
+                      {t.users.approve}
+                    </button>
+                    <button
+                      type="button"
+                      className="button button-ghost button-ghost-danger"
+                      aria-label={t.users.rejectAria(u.name)}
+                      onClick={() => {
+                        setRejectError('');
+                        setToReject(u);
+                      }}
+                      disabled={busyId === u.id}
+                    >
+                      {t.users.reject}
+                    </button>
+                  </>
+                )}
                 <button
                   type="button"
                   className="button button-ghost"
@@ -255,7 +370,7 @@ export default function UsersPage() {
                 >
                   {t.users.edit}
                 </button>
-                {!u.isMaster && u.id !== me.id && (
+                {!u.isMaster && u.id !== me.id && u.status !== 'pendente' && (
                   <button
                     type="button"
                     className="button button-ghost button-ghost-danger"
@@ -285,6 +400,19 @@ export default function UsersPage() {
         onCancel={() => setToDelete(null)}
       >
         {toDelete && t.users.confirmText(toDelete.name)}
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={Boolean(toReject)}
+        title={t.users.rejectTitle}
+        confirmLabel={t.users.rejectYes}
+        busyLabel={t.users.rejectBusy}
+        busy={rejecting}
+        error={rejectError}
+        onConfirm={handleReject}
+        onCancel={() => setToReject(null)}
+      >
+        {toReject && t.users.rejectText(toReject.name)}
       </ConfirmDialog>
     </section>
   );

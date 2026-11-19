@@ -104,7 +104,13 @@ beforeEach(async () => {
   await prisma.activity.deleteMany();
   await prisma.user.deleteMany();
   user = await prisma.user.create({
-    data: { username: 'ana', passwordHash: 'x', name: 'Ana', phone: '+5532999999999' },
+    data: {
+      username: 'ana',
+      passwordHash: 'x',
+      name: 'Ana',
+      phone: '+5532999999999',
+      phoneVerifiedAt: new Date(),
+    },
   });
 });
 
@@ -185,6 +191,20 @@ describe('envio', () => {
     const { at } = harness();
     await at('2026-11-18T10:01:00');
     assert.equal((await occurrences()).length, 0);
+  });
+
+  test.each([
+    ['telefone não confirmado (cadastro)', { phoneVerifiedAt: null }],
+    ['conta aguardando aprovação', { status: 'pendente' }],
+  ])('%s: ocorrência criada, sem envio', async (_label, data) => {
+    await prisma.user.update({ where: { id: user.id }, data });
+    await createActivity();
+    const { sent, at } = harness();
+    await at('2026-11-18T07:30:00');
+    const [occ] = await occurrences();
+    assert.equal(occ.status, 'pendente');
+    assert.equal(occ.notifiedAt, null);
+    assert.equal(sent.length, 0);
   });
 
   test('usuário sem telefone: ocorrência criada, sem envio', async () => {

@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useLocation, useMatch } from 'react-router';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { api } from '../lib/api.js';
 import { onFriendsChanged } from '../lib/friends.js';
+import { onUsersChanged } from '../lib/users.js';
 import t from '../i18n/pt-BR.js';
 import StreakBadge from './StreakBadge.jsx';
 import ThemeToggle from './ThemeToggle.jsx';
@@ -10,43 +11,48 @@ import ThemeToggle from './ThemeToggle.jsx';
 const PENDING_POLL_MS = 60_000;
 
 /**
- * Pedidos de amizade recebidos e ainda sem resposta (contador da aba "Amigos").
- * Recarrega ao trocar de página, quando a página de amigos muda algo, ao voltar o foco
- * e a cada minuto.
+ * Contador de uma aba (pedidos de amizade recebidos, cadastros aguardando aprovação).
+ * Recarrega ao trocar de página, quando a página da aba avisa que mudou algo
+ * (`onChanged`), ao voltar o foco e a cada minuto. `path` null = desligado.
  */
-function usePendingFriendRequests() {
+function usePolledCount(path, pick, onChanged) {
   const location = useLocation();
   const [count, setCount] = useState(0);
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
+    if (!path) return undefined;
     let ignore = false;
-    api('/friends/pending')
-      .then((data) => !ignore && setCount(data.recebidos))
+    api(path)
+      .then((data) => !ignore && setCount(pick(data)))
       .catch(() => {
         // Sem o contador o app segue funcionando
       });
     return () => {
       ignore = true;
     };
-  }, [location.key, reloadKey]);
+  }, [path, pick, location.key, reloadKey]);
 
   useEffect(() => {
+    if (!path) return undefined;
     const refresh = () => {
       if (document.visibilityState === 'visible') setReloadKey((k) => k + 1);
     };
     const timer = setInterval(refresh, PENDING_POLL_MS);
     window.addEventListener('focus', refresh);
-    const off = onFriendsChanged(refresh);
+    const off = onChanged(refresh);
     return () => {
       clearInterval(timer);
       window.removeEventListener('focus', refresh);
       off();
     };
-  }, []);
+  }, [path, onChanged]);
 
-  return count;
+  return path ? count : 0;
 }
+
+const pickReceived = (data) => data.recebidos;
+const pickCount = (data) => data.count;
 
 const NAV_ICONS = {
   home: (
@@ -121,7 +127,13 @@ function NavItem({ to, end, icon, label, shortLabel, count = 0, countLabel }) {
 export default function Layout() {
   const { user, logout } = useAuth();
   const [loggingOut, setLoggingOut] = useState(false);
-  const pendingFriends = usePendingFriendRequests();
+  const pendingFriends = usePolledCount('/friends/pending', pickReceived, onFriendsChanged);
+  // Cadastros aguardando aprovação (só o master vê a aba "Usuários")
+  const pendingUsers = usePolledCount(
+    user.isMaster ? '/users/pending-count' : null,
+    pickCount,
+    onUsersChanged,
+  );
   // Calendário (início) usa um container mais largo; cabeçalho e abas acompanham
   const isWide = useMatch({ path: '/', end: true }) !== null;
 
@@ -171,7 +183,15 @@ export default function Layout() {
           count={pendingFriends}
           countLabel={t.nav.friendsPending(pendingFriends)}
         />
-        {user.isMaster && <NavItem to="/usuarios" icon="users" label={t.nav.users} />}
+        {user.isMaster && (
+          <NavItem
+            to="/usuarios"
+            icon="users"
+            label={t.nav.users}
+            count={pendingUsers}
+            countLabel={t.nav.usersPending(pendingUsers)}
+          />
+        )}
         {user.isMaster && <NavItem to="/whatsapp" icon="chat" label={t.nav.whatsapp} />}
         <NavItem to="/perfil" icon="user" label={t.nav.profile} shortLabel={t.nav.profileShort} />
       </nav>

@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Navigate, useLocation, useNavigate } from 'react-router';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { safeRedirect } from '../auth/redirect.js';
 import FullPageLoading from '../components/FullPageLoading.jsx';
 import t from '../i18n/pt-BR.js';
 import { isInAppBrowser } from '../lib/inAppBrowser.js';
+import { savePendingSignup, useSignupMode } from '../lib/signup.js';
 import useMediaQuery from '../lib/useMediaQuery.js';
 
 // Mouse/trackpad: foca o usuário ao abrir. No celular o autoFocus abre o teclado e
@@ -37,6 +38,7 @@ function errorMessage(err) {
   if ([0, 502, 503, 504].includes(err?.status)) return t.errors.network;
   if (err?.status === 401) return t.login.invalid;
   if (err?.status === 429) return t.login.tooManyAttempts;
+  if (err?.data?.code === 'pending_approval') return t.login.pendingApproval;
   if (err?.status === 400) return t.login.required;
   return t.errors.generic;
 }
@@ -56,6 +58,7 @@ export default function LoginPage() {
   const isDesktop = useMediaQuery(DESKTOP_QUERY);
   const isTouch = useMediaQuery(TOUCH_QUERY);
   const showInAppHint = isInAppBrowser() || (isTouch && destination.startsWith('/validar/'));
+  const signupMode = useSignupMode();
 
   if (status === 'loading') return <FullPageLoading />;
   if (status === 'authenticated' && !submitting) return <Navigate to={destination} replace />;
@@ -72,6 +75,13 @@ export default function LoginPage() {
       await login(username.trim(), password, remember);
       navigate(destination, { replace: true });
     } catch (err) {
+      // Conta do cadastro com telefone ainda não confirmado: volta para a tela do código
+      if (err?.data?.code === 'phone_unverified' && err.data.ticket) {
+        const { ticket, phone, resendIn } = err.data;
+        savePendingSignup({ ticket, phone, resendIn });
+        navigate('/cadastro', { state: { ticket, phone, resendIn } });
+        return;
+      }
       setError(errorMessage(err));
       setSubmitting(false);
     }
@@ -159,6 +169,12 @@ export default function LoginPage() {
           {submitting && <span className="spinner spinner-small" aria-hidden="true" />}
           {submitting ? t.login.submitting : t.login.submit}
         </button>
+
+        {signupMode && signupMode !== 'desligado' && (
+          <p className="auth-switch">
+            {t.signup.linkPrompt} <Link to="/cadastro">{t.signup.link}</Link>
+          </p>
+        )}
 
         {showInAppHint && (
           <aside className="login-inapp-hint">

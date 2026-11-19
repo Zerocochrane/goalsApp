@@ -33,7 +33,18 @@ async function openActivityDialog(page) {
 }
 
 const SCREENS = [
-  { name: 'login', path: '/login', ready: (p) => p.getByRole('heading', { name: 'Entrar' }) },
+  {
+    name: 'login',
+    path: '/login',
+    public: true,
+    ready: (p) => p.getByRole('heading', { name: 'Entrar' }),
+  },
+  {
+    name: 'cadastro',
+    path: '/cadastro',
+    public: true,
+    ready: (p) => p.getByRole('heading', { name: 'Criar conta' }),
+  },
   { name: 'inicio', path: '/', ready: (p) => p.locator('.week-grid') },
   { name: 'atividade', path: '/', open: openActivityDialog, ready: (p) => p.getByRole('dialog') },
   // Visão mensal com o detalhe de hoje aberto (atividade de nome longo)
@@ -216,7 +227,7 @@ for (const scheme of ['light', 'dark']) {
 
       for (const screen of SCREENS) {
         test(screen.name, async ({ page }, testInfo) => {
-          if (screen.name !== 'login') {
+          if (!screen.public) {
             const res = await page.request.post('/api/auth/login', {
               data: { username: user.username, password: PASSWORD },
             });
@@ -229,7 +240,7 @@ for (const scheme of ['light', 'dark']) {
           await expect(page.locator('html')).toHaveAttribute('data-theme', scheme);
 
           // Dados longos de fato na tela
-          if (screen.name !== 'login') {
+          if (!screen.public) {
             // (a tela "validar" conclui a atividade de hoje: a sequência sobe 1)
             await expect(page.locator('.streak-badge')).toContainText(/\d{3} dias/);
           }

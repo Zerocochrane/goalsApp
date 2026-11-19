@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import { prisma } from './db/prisma.js';
-import { getWhatsAppStatus } from './whatsapp/whatsapp.js';
+import { getWhatsAppStatus, sendMessage as whatsappSend } from './whatsapp/whatsapp.js';
 import { authRouter } from './auth/routes.js';
 import { requireAuth } from './auth/middleware.js';
 import { profileRouter, usersRouter } from './users/routes.js';
@@ -15,6 +15,7 @@ import { occurrencesRouter } from './occurrences/routes.js';
 import { streakRouter } from './streak/routes.js';
 import { friendsRouter } from './friends/routes.js';
 import { leaderboardRouter } from './leaderboard/routes.js';
+import { signupRouter } from './signup/routes.js';
 
 // Build do React (gerado por `npm run build`). Pode ser trocado com CLIENT_DIST.
 const DEFAULT_CLIENT_DIST = path.resolve(
@@ -22,7 +23,14 @@ const DEFAULT_CLIENT_DIST = path.resolve(
   '../../client/dist',
 );
 
-export function createApp({ clientDist = process.env.CLIENT_DIST || DEFAULT_CLIENT_DIST } = {}) {
+/**
+ * `send(phone, text)`: envio pelo WhatsApp (códigos de confirmação e avisos); os testes
+ * trocam por um que só guarda as mensagens.
+ */
+export function createApp({
+  clientDist = process.env.CLIENT_DIST || DEFAULT_CLIENT_DIST,
+  send = whatsappSend,
+} = {}) {
   const app = express();
 
   app.disable('x-powered-by');
@@ -61,12 +69,13 @@ export function createApp({ clientDist = process.env.CLIENT_DIST || DEFAULT_CLIE
     });
   });
   app.use('/api/auth', authRouter());
+  app.use('/api/signup', signupRouter({ send })); // cadastro pela própria pessoa
 
   // Daqui para baixo, tudo em /api exige login
   app.use('/api', requireAuth);
 
-  app.use('/api/users', usersRouter()); // somente admin master
-  app.use('/api/profile', profileRouter());
+  app.use('/api/users', usersRouter({ send })); // somente admin master
+  app.use('/api/profile', profileRouter({ send }));
   app.use('/api/activities', activitiesRouter()); // sempre do próprio usuário
   app.use('/api/calendar', calendarRouter());
   app.use('/api/occurrences', occurrencesRouter()); // validação pelo link do WhatsApp

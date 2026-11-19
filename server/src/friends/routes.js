@@ -114,8 +114,9 @@ export function friendsRouter() {
     }
 
     const me = req.user.id;
-    const target = await prisma.user.findUnique({
-      where: { username: parsed.value },
+    // Conta aguardando aprovação ainda não existe para os outros usuários
+    const target = await prisma.user.findFirst({
+      where: { username: parsed.value, status: 'ativo' },
       select: friendUserSelect,
     });
     if (!target) {

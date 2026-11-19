@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import { prisma } from '../db/prisma.js';
-import { publicUserSelect, requireAuth } from './middleware.js';
+import { PENDING_APPROVAL, PHONE_UNVERIFIED, publicUserSelect, requireAuth } from './middleware.js';
+import { pendingPhoneResponse } from '../signup/routes.js';
 import { burnPasswordCheck, verifyPassword } from './password.js';
 import {
   clearSessionCookie,
@@ -51,6 +52,19 @@ export function authRouter() {
       ? await verifyPassword(password, user.passwordHash)
       : await burnPasswordCheck(password);
     if (!ok) return res.status(401).json({ error: INVALID });
+
+    // Senha certa, mas a conta ainda não pode entrar (só agora revela o motivo)
+    if (user.status !== 'ativo') {
+      if (user.createdBy === 'cadastro' && !user.phoneVerifiedAt && user.phone) {
+        // Fechou a tela do código: volta para ela com um ticket novo
+        return res.status(403).json({
+          error: PHONE_UNVERIFIED,
+          code: 'phone_unverified',
+          ...(await pendingPhoneResponse(user)),
+        });
+      }
+      return res.status(403).json({ error: PENDING_APPROVAL, code: 'pending_approval' });
+    }
 
     // "Manter conectado" vem marcado; só `remember: false` pede sessão curta
     setSessionCookie(res, user, { remember: remember !== false });

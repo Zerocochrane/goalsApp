@@ -31,22 +31,23 @@ Crie o arquivo de configuração do backend a partir do exemplo e ajuste os valo
 cp server/.env.example server/.env
 ```
 
-| Variável                | Para que serve                                                      |
-| ----------------------- | ------------------------------------------------------------------- |
-| `API_PORT` / `PORT`     | Porta da API em dev (padrão 4100). `PORT`, se definida, prevalece.  |
-| `WEB_PORT`              | Porta do Vite em dev e do app em produção (padrão 4101)             |
-| `APP_URL`               | Endereço público do app (usado nos links enviados pelo WhatsApp)    |
-| `JWT_SECRET`            | Texto longo e aleatório para assinar o login — **troque**           |
-| `COOKIE_SECURE`         | `false` só se o app for servido em `http://` fora do localhost      |
-| `DATABASE_URL`          | Caminho do banco SQLite (`file:./data/goals.db`)                    |
-| `MASTER_ADMIN_USER`     | Usuário do admin master criado no primeiro start                    |
-| `MASTER_ADMIN_PASSWORD` | Senha do admin master — **troque**                                  |
-| `WA_SESSION_DIR`        | Pasta da sessão do WhatsApp (padrão `data/wa-session`, fora do git) |
-| `WA_SEND_INTERVAL_MS`   | Intervalo mínimo entre envios no WhatsApp (padrão 3000)             |
-| `WA_DISABLED`           | `true` desliga o WhatsApp (ex.: em desenvolvimento)                 |
-| `BACKUP_DIR`            | Pasta dos backups diários do SQLite (padrão `data/backups`)         |
-| `BACKUP_KEEP_DAYS`      | Quantos dias de backup guardar (padrão 14)                          |
-| `TZ`                    | Fuso horário (`America/Sao_Paulo`)                                  |
+| Variável                | Para que serve                                                              |
+| ----------------------- | --------------------------------------------------------------------------- |
+| `API_PORT` / `PORT`     | Porta da API em dev (padrão 4100). `PORT`, se definida, prevalece.          |
+| `WEB_PORT`              | Porta do Vite em dev e do app em produção (padrão 4101)                     |
+| `APP_URL`               | Endereço público do app (usado nos links enviados pelo WhatsApp)            |
+| `JWT_SECRET`            | Texto longo e aleatório para assinar o login — **troque**                   |
+| `COOKIE_SECURE`         | `false` só se o app for servido em `http://` fora do localhost              |
+| `DATABASE_URL`          | Caminho do banco SQLite (`file:./data/goals.db`)                            |
+| `MASTER_ADMIN_USER`     | Usuário do admin master criado no primeiro start                            |
+| `MASTER_ADMIN_PASSWORD` | Senha do admin master — **troque**                                          |
+| `SIGNUP_MODE`           | Cadastro pela própria pessoa: `aprovacao` (padrão), `aberto` ou `desligado` |
+| `WA_SESSION_DIR`        | Pasta da sessão do WhatsApp (padrão `data/wa-session`, fora do git)         |
+| `WA_SEND_INTERVAL_MS`   | Intervalo mínimo entre envios no WhatsApp (padrão 3000)                     |
+| `WA_DISABLED`           | `true` desliga o WhatsApp (ex.: em desenvolvimento)                         |
+| `BACKUP_DIR`            | Pasta dos backups diários do SQLite (padrão `data/backups`)                 |
+| `BACKUP_KEEP_DAYS`      | Quantos dias de backup guardar (padrão 14)                                  |
+| `TZ`                    | Fuso horário (`America/Sao_Paulo`)                                          |
 
 O `server/.env` nunca é versionado.
 
@@ -100,13 +101,39 @@ perfil** ou pelo admin) derruba as sessões abertas em outros aparelhos: o JWT l
 
 ### Usuários
 
-Só o **admin master** cria, edita e exclui usuários (página **Usuários**, API `/api/users` —
+O **admin master** cria, edita e exclui usuários (página **Usuários**, API `/api/users` —
 qualquer outro usuário recebe `403`). Cada usuário criado administra apenas os próprios dados
 (atividades, telefone, sequência). O nome de usuário é guardado em minúsculas e o telefone
 WhatsApp em E.164 brasileiro (`+55` + DDD + número). O master não pode excluir a si mesmo.
 
 Em **Meu perfil** (`/api/profile`), qualquer usuário altera o próprio telefone e a própria senha
 (pedindo a senha atual; 5 tentativas erradas por minuto).
+
+### Cadastro (criar a própria conta)
+
+Com `SIGNUP_MODE` diferente de `desligado`, a tela de login mostra **Criar conta** (`/cadastro`):
+nome, nome de usuário, senha + confirmação e telefone WhatsApp (as mesmas validações da
+gestão de usuários). A conta nasce **pendente**, nunca master, e o app envia pelo WhatsApp um
+código de 6 dígitos (vale 10 min, até 5 tentativas; só o hash HMAC fica no banco).
+
+| `SIGNUP_MODE`        | Depois de confirmar o telefone                                                   |
+| -------------------- | -------------------------------------------------------------------------------- |
+| `aprovacao` (padrão) | Fica "Aguardando aprovação" até o master **Aprovar** (ou **Recusar**, que apaga) |
+| `aberto`             | Conta liberada e login automático                                                |
+| `desligado`          | Sem link nem cadastro — só o master cria usuários (comportamento anterior)       |
+
+- Conta pendente não usa a API (`403` com `code: pending_approval`). Quem fechou a tela do
+  código e entra com a senha certa volta para ela (`code: phone_unverified`).
+- Lembretes só vão para telefone **confirmado** de conta **ativa**. Telefone definido pelo
+  master (ou trocado em "Meu perfil" por quem ele criou) já vale confirmado; quem se cadastrou
+  e troca o número precisa confirmar de novo em **Meu perfil**.
+- O master vê o contador na aba **Usuários**, o filtro **Aguardando aprovação** e recebe um
+  aviso no WhatsApp a cada cadastro pendente (se o telefone dele estiver cadastrado). A pessoa
+  aprovada também é avisada.
+- API pública: `GET /api/signup/config`, `POST /api/signup`, `POST /api/signup/verify-phone`,
+  `POST /api/signup/resend-code`. Master: `POST /api/users/:id/approve`,
+  `POST /api/users/:id/reject`, `GET /api/users/pending-count`. Perfil:
+  `POST /api/profile/phone/send-code`, `POST /api/profile/phone/verify`.
 
 ## Atividades e calendário
 
@@ -162,7 +189,8 @@ pelo `server/index.js`. Roda a cada minuto (`node-cron`, fuso `America/Sao_Paulo
    perde atividade. A idempotência vem do índice único `(activityId, date)`.
 3. Envia pelo WhatsApp: `*<atividade>* deve ser feita agora! Depois de concluir, clique neste
 link para validar a atividade. APP_URL/validar/<token>` e grava `notifiedAt`. Se o envio
-   falhar, tenta de novo a cada 2 min enquanto o link vale. Usuário sem telefone não recebe.
+   falhar, tenta de novo a cada 2 min enquanto o link vale. Usuário sem telefone, com telefone
+   não confirmado ou com a conta aguardando aprovação não recebe.
 
 - **Recuperação após reinício:** no start, olha até 31 dias para trás. O que deveria ter sido
   gerado com o servidor fora nasce `falhou`; o que ainda está dentro de 1h é enviado.
@@ -198,7 +226,8 @@ internos são aceitos no `redirect`.
   com as migrations reais — login/cookie/JWT e rate limit, permissões (master × usuário ×
   sem login), usuários e perfil, atividades (validação, isolamento entre usuários, versões),
   calendário, validação pelo link (concluída, já validada, expirada, de outra pessoa),
-  sequência, amigos (pedido → aceitar/recusar/cancelar → desfazer, duplicidade, privacidade)
+  sequência, cadastro (os três modos, código certo/errado/expirado, limite de tentativas e de
+  envios, aprovação/recusa, conta pendente sem acesso), amigos (pedido → aceitar/recusar/cancelar → desfazer, duplicidade, privacidade)
   e ranking (só amigos aceitos, empates, sem atividades, só números agregados). O cálculo do
   ranking tem testes unitários próprios em `server/test/leaderboard.test.js`.
 - **E2E** ([`e2e/`](e2e/)): sobe `server/index.js` servindo o build, na porta 4199 (ou
@@ -206,6 +235,9 @@ internos são aceitos no `redirect`.
   - `fluxo.spec.js`: login → criar atividade → validar pelo link → dia verde; e link expirado →
     atividade e dia vermelhos. A atividade é de amanhã e o agendador roda com relógio simulado,
     então o teste não depende da hora em que roda.
+  - `cadastro.spec.js`: pelo celular, criar a conta → código do WhatsApp → master aprova →
+    entrar e criar atividade; voltar à tela do código pelo login; recusar; telas do cadastro
+    em 320–1280 px, claro e escuro.
   - `amigos.spec.js`: dois usuários viram amigos pela tela (contador na aba, aceitar, remover
     com confirmação), recusar e cancelar pedidos, sem expor atividades nem telefone.
   - `ranking.spec.js`: ranking por sequência e mês com pódio, "Você" destacado, quem não tem
@@ -222,16 +254,17 @@ internos são aceitos no `redirect`.
 
 ## Revisão de segurança
 
-| Item          | Como está                                                                                                                   |
-| ------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Senhas        | bcrypt (12 rounds); usuário inexistente gasta o mesmo tempo (não revela quem existe)                                        |
-| Cookie        | `goals_session`: `httpOnly`, `sameSite=lax`, `secure` com `APP_URL` em HTTPS, 7 dias                                        |
-| JWT           | HS256 fixo (rejeita `none`/outro algoritmo); `sessionVersion` derruba sessões ao trocar a senha                             |
-| Rate limit    | Login: 5 erros/min por IP (IP real via Nginx, `trust proxy` só do loopback). Troca de senha: 5 erros/min por usuário        |
-| Permissões    | Tudo em `/api` exige login; `/api/users` e `/api/whatsapp` só master; dados sempre do próprio usuário (404 para o de outro) |
-| Link WhatsApp | Token aleatório de 32 bytes; exige login do dono; vale 1 hora e uma única vez (UPDATE condicional)                          |
-| Cabeçalhos    | `X-Content-Type-Options`, `X-Frame-Options: DENY`, `Referrer-Policy` (o Nginx acrescenta HSTS)                              |
-| Entrada       | JSON até 100 kB; validação de todos os campos no servidor; `redirect` do login só aceita caminhos internos                  |
+| Item          | Como está                                                                                                                                      |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Senhas        | bcrypt (12 rounds); usuário inexistente gasta o mesmo tempo (não revela quem existe)                                                           |
+| Cookie        | `goals_session`: `httpOnly`, `sameSite=lax`, `secure` com `APP_URL` em HTTPS, 7 dias                                                           |
+| JWT           | HS256 fixo (rejeita `none`/outro algoritmo); `sessionVersion` derruba sessões ao trocar a senha                                                |
+| Rate limit    | Login: 5 erros/min por IP (IP real via Nginx, `trust proxy` só do loopback). Troca de senha: 5 erros/min por usuário                           |
+| Cadastro      | 10/hora por IP; código do WhatsApp: 1/min e 5/hora por IP e 1/min por conta; 5 tentativas por código; campo isca; não revela telefone já usado |
+| Permissões    | Tudo em `/api` exige login; `/api/users` e `/api/whatsapp` só master; dados sempre do próprio usuário (404 para o de outro)                    |
+| Link WhatsApp | Token aleatório de 32 bytes; exige login do dono; vale 1 hora e uma única vez (UPDATE condicional)                                             |
+| Cabeçalhos    | `X-Content-Type-Options`, `X-Frame-Options: DENY`, `Referrer-Policy` (o Nginx acrescenta HSTS)                                                 |
+| Entrada       | JSON até 100 kB; validação de todos os campos no servidor; `redirect` do login só aceita caminhos internos                                     |
 
 Ponto em aberto: não há CSP (o `index.html` tem um script inline que aplica o tema antes da
 primeira pintura); o `sameSite=lax` já impede que outro site use a sessão em POSTs.

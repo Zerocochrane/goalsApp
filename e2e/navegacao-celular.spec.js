@@ -27,7 +27,8 @@ function measureNav(page) {
         const r = a.getBoundingClientRect();
         const label = [...a.querySelectorAll('span')].find((s) => s.getClientRects().length);
         return {
-          text: a.innerText.trim(),
+          // Só o rótulo (o contador da aba, se houver, fica de fora)
+          text: label.textContent.trim(),
           left: r.left,
           right: r.right,
           width: r.width,

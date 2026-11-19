@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../auth/AuthContext.jsx';
 import Field from '../components/Field.jsx';
+import PhoneCodeForm from '../components/PhoneCodeForm.jsx';
 import { api } from '../lib/api.js';
 import { apiErrorMessage, apiFieldErrors } from '../lib/errors.js';
 import { formatPhone } from '../lib/phone.js';
@@ -62,6 +63,87 @@ function PhoneForm() {
         <SubmitButton busy={busy} label={t.profile.savePhone} />
       </div>
     </form>
+  );
+}
+
+/** Telefone ainda não confirmado (conta do cadastro que trocou o número, por exemplo). */
+function PhoneVerification() {
+  const { user, updateUser } = useAuth();
+  // null = código ainda não pedido; { phone, resendIn } depois do envio
+  const [sent, setSent] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const needsVerification = Boolean(user.phone) && !user.phoneVerifiedAt;
+
+  if (!needsVerification) {
+    return notice ? (
+      <p className="notice" role="status">
+        {notice}
+      </p>
+    ) : null;
+  }
+
+  async function handleSend() {
+    setBusy(true);
+    setError('');
+    try {
+      setSent(await api('/profile/phone/send-code', { method: 'POST' }));
+    } catch (err) {
+      if (err?.data?.retryAfter) {
+        // Código já enviado há pouco: mostra o campo com a espera para reenviar
+        setSent({ phone: formatPhone(user.phone), resendIn: err.data.retryAfter });
+      } else {
+        setError(err?.status === 429 && err.message ? err.message : apiErrorMessage(err));
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleVerify(code) {
+    const { user: saved } = await api('/profile/phone/verify', { method: 'POST', body: { code } });
+    setNotice(t.profile.phoneVerified);
+    updateUser(saved);
+  }
+
+  return (
+    <section className="card profile-card phone-verify" aria-labelledby="phone-verify-title">
+      <h2 id="phone-verify-title" className="section-title">
+        {t.profile.phoneUnverifiedTitle}
+      </h2>
+      <p className="muted">{t.profile.phoneUnverifiedText}</p>
+      {sent ? (
+        <PhoneCodeForm
+          key={user.phone}
+          idPrefix="profile"
+          phone={sent.phone}
+          resendIn={sent.resendIn}
+          onVerify={handleVerify}
+          onResend={() => api('/profile/phone/send-code', { method: 'POST' })}
+          autoFocus
+        />
+      ) : (
+        <>
+          {error && (
+            <p className="form-error" role="alert">
+              {error}
+            </p>
+          )}
+          <div className="form-actions">
+            <button
+              type="button"
+              className="button button-primary"
+              onClick={handleSend}
+              disabled={busy}
+            >
+              {busy && <span className="spinner spinner-small" aria-hidden="true" />}
+              {busy ? t.profile.sendingCode : t.profile.sendCode}
+            </button>
+          </div>
+        </>
+      )}
+    </section>
   );
 }
 
@@ -181,6 +263,7 @@ export default function ProfilePage() {
       </div>
 
       <PhoneForm />
+      <PhoneVerification key={user.phone} />
       <PasswordForm />
     </section>
   );

@@ -7,10 +7,38 @@ import { addDays, todayInSaoPaulo, zonedDateTime } from '../../src/activities/re
 
 export const PASSWORD = 'senha-secreta';
 
-/** App sem o build do React (só a API). */
-export function buildApp() {
-  return createApp({ clientDist: '/caminho/que/nao/existe' });
+/**
+ * App sem o build do React (só a API). `send` substitui o WhatsApp (padrão: descarta).
+ */
+export function buildApp({ send = async () => {} } = {}) {
+  return createApp({ clientDist: '/caminho/que/nao/existe', send });
 }
+
+/** Envio falso do WhatsApp que guarda as mensagens (para ler o código enviado). */
+export function fakeWhatsApp() {
+  const sent = [];
+  return {
+    sent,
+    send: async (phone, text) => {
+      sent.push({ phone, text });
+    },
+    /** Último código de 6 dígitos enviado para `phone`. */
+    lastCode(phone) {
+      const message = sent.findLast((m) => m.phone === phone && /código/.test(m.text));
+      return message?.text.match(/\*(\d{6})\*/)?.[1];
+    },
+  };
+}
+
+/** Agente Supertest anônimo com um IP próprio (rate limits por IP não se misturam). */
+export function anonymousAgent(app) {
+  return request
+    .agent(app)
+    .set('X-Forwarded-For', `10.2.${++anonCounter >> 8}.${anonCounter & 255}`);
+}
+
+let ipCounter = 0;
+let anonCounter = 0;
 
 // Mesmo hash para todos os usuários de teste (bcrypt com 12 rounds é lento)
 let passwordHash;
@@ -25,7 +53,6 @@ export async function createUser(prisma, { username, isMaster = false, ...data }
  * Agente Supertest já logado (guarda o cookie). Cada agente usa um IP próprio
  * (X-Forwarded-For, aceito do loopback) para não disputar o rate limit do login.
  */
-let ipCounter = 0;
 export async function loginAs(app, username, password = PASSWORD) {
   const ip = `10.1.0.${++ipCounter}`;
   const agent = request.agent(app).set('X-Forwarded-For', ip);

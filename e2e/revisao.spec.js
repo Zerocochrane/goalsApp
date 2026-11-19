@@ -7,6 +7,7 @@ const ADMIN = { username: process.env.E2E_ADMIN_USER, password: process.env.E2E_
 
 const SCREENS = [
   { name: 'login', path: '/login', heading: 'Entrar', public: true },
+  { name: 'cadastro', path: '/cadastro', heading: 'Criar conta', public: true },
   { name: 'inicio', path: '/', heading: 'Início' },
   { name: 'nova-atividade', path: '/', heading: 'Nova atividade', open: openActivityDialog },
   { name: 'amigos', path: '/amigos', heading: 'Amigos', exact: true },
