@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import t from '../i18n/pt-BR.js';
 import {
   applyTheme,
@@ -30,34 +30,30 @@ export default function ThemeToggle() {
   }
 
   const label = theme === 'dark' ? t.theme.activateLight : t.theme.activateDark;
+  // id único para a máscara do SVG (sem os caracteres especiais do useId)
+  const maskId = `theme-cut-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
 
+  // Mesmo ícone do Site: no escuro o disco cresce, a "sombra" desliza por cima
+  // formando o crescente e os raios recolhem girando — e volta no claro.
   return (
     <button
       type="button"
-      className="theme-toggle"
-      data-theme-icon={theme}
+      className={`theme-toggle${theme === 'dark' ? ' is-dark' : ''}`}
       onClick={handleClick}
       aria-label={label}
       title={label}
     >
-      <svg
-        className="theme-icon"
-        viewBox="0 0 24 24"
-        width="20"
-        height="20"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-        focusable="false"
-      >
-        <g className="theme-icon-sun">
-          <circle cx="12" cy="12" r="4" />
-          <path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4" />
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+        <mask id={maskId}>
+          <rect x="0" y="0" width="24" height="24" fill="#fff" />
+          <circle className="tt-cut" cx="16.6" cy="7.6" r="6" fill="#000" />
+        </mask>
+        <circle className="tt-disc" cx="12" cy="12" r="7.6" mask={`url(#${maskId})`} />
+        <g className="tt-rays">
+          {[0, 45, 90, 135, 180, 225, 270, 315].map((a) => (
+            <line key={a} x1="12" y1="2.2" x2="12" y2="4.2" transform={`rotate(${a} 12 12)`} />
+          ))}
         </g>
-        <path className="theme-icon-moon" d="M19.5 14.2A7.5 7.5 0 1 1 9.8 4.5a7 7 0 0 0 9.7 9.7z" />
       </svg>
     </button>
   );
