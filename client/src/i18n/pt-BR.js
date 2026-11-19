@@ -1,5 +1,8 @@
 // Todos os textos da interface, em português do Brasil.
 // Nenhum texto visível ao usuário deve ficar fixo nos componentes: adicione aqui.
+// Status do dia por extenso (rótulos da visão mensal)
+const STATUS_TEXT = { concluido: 'Dia concluído', falhou: 'Dia com falha' };
+
 const ptBR = {
   app: {
     name: 'Goals',
@@ -135,6 +138,28 @@ const ptBR = {
       concluido: 'Dia concluído',
       falhou: 'Dia com falha',
     },
+    viewLabel: 'Visualização do calendário',
+    viewWeek: 'Semana',
+    viewMonth: 'Mês',
+    nextMonth: 'Próximo',
+    previousMonthAria: 'Mês anterior',
+    nextMonthAria: 'Próximo mês',
+    monthDaysLabel: 'Dias do mês',
+    monthWeekdays: ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'],
+    // Ex.: "Segunda, 16 de nov., hoje: Dia concluído, 3 de 4 atividades concluídas"
+    monthDayAria: ({ day, isToday, status, done, total }) => {
+      const parts = [];
+      if (status === 'concluido' || status === 'falhou') parts.push(STATUS_TEXT[status]);
+      parts.push(
+        total === 0
+          ? 'nenhuma atividade'
+          : `${done} de ${total} ${total === 1 ? 'atividade concluída' : 'atividades concluídas'}`,
+      );
+      return `${day}${isToday ? ', hoje' : ''}: ${parts.join(', ')}`;
+    },
+    dayCount: (done, total) => `${done}/${total}`,
+    detailHint: 'Toque em um dia para ver as atividades.',
+    pastReadOnly: 'Dia passado: só leitura.',
     legendLabel: 'Legenda das cores',
     legend: {
       concluida: 'Concluída',

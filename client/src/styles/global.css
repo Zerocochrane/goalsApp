@@ -1770,3 +1770,260 @@ a.button-ghost:hover {
     transition: none;
   }
 }
+
+/* ---------- Calendário: alternância Semana | Mês ---------- */
+
+.calendar-view-switch {
+  display: inline-flex;
+  margin-top: var(--space-4);
+  padding: 2px;
+  gap: 2px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface-muted);
+}
+
+.calendar-view-option {
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  min-width: 88px;
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  color: var(--color-text-muted);
+  background: none;
+  border: 0;
+  border-radius: calc(var(--radius) - 2px);
+  cursor: pointer;
+}
+
+.calendar-view-option:hover {
+  color: var(--color-text);
+}
+
+.calendar-view-option[aria-pressed='true'] {
+  color: var(--color-text);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.calendar-view-switch + .week-calendar {
+  margin-top: var(--space-4);
+}
+
+/* ---------- Calendário mensal ---------- */
+
+.month-layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.month-grid-wrap {
+  min-width: 0;
+}
+
+.month-weekdays,
+.month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+}
+
+.month-weekdays {
+  margin-bottom: var(--space-1);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--color-text-muted);
+}
+
+.month-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.month-grid > li {
+  min-width: 0;
+}
+
+/* Celular: só número + indicador de status, alvo de toque ≥ 44px */
+.month-day {
+  font: inherit;
+  color: var(--color-text);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  width: 100%;
+  min-height: 48px;
+  padding: var(--space-1) 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-small);
+  cursor: pointer;
+}
+
+.month-day:hover {
+  border-color: var(--color-primary);
+}
+
+.month-day-past {
+  background: var(--color-surface-muted);
+}
+
+.month-day-number {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.6;
+  min-width: 1.6em;
+  border-radius: 999px;
+  text-align: center;
+}
+
+.month-day-icon {
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--color-text-muted);
+}
+
+.month-day-count {
+  display: none;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+}
+
+/* Status: cor + ícone (✓ / ✕) — nunca só a cor */
+.month-day[data-status='concluido'] {
+  background: var(--color-success-bg);
+  border-color: var(--color-success);
+  color: var(--color-success-text);
+}
+
+.month-day[data-status='falhou'] {
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger);
+  color: var(--color-danger-text);
+}
+
+.month-day[data-status='concluido'] .month-day-icon,
+.month-day[data-status='falhou'] .month-day-icon,
+.month-day[data-status='concluido'] .month-day-count,
+.month-day[data-status='falhou'] .month-day-count {
+  color: inherit;
+}
+
+/* Dias do mês anterior/seguinte: esmaecidos */
+.month-day-outside {
+  opacity: 0.45;
+}
+
+/* Hoje: número dentro de um círculo da cor primária */
+.month-day-today .month-day-number {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+/* Dia escolhido (detalhe aberto): contorno primário */
+.month-day[aria-pressed='true'] {
+  border-color: var(--color-primary);
+  box-shadow: inset 0 0 0 1px var(--color-primary);
+  opacity: 1;
+}
+
+.month-detail {
+  padding: var(--space-4);
+  min-width: 0;
+  scroll-margin-top: calc(var(--header-height) + var(--space-3));
+  scroll-margin-bottom: var(--space-4);
+}
+
+.month-detail-header {
+  margin-bottom: var(--space-3);
+}
+
+.month-detail-hint,
+.month-detail-readonly {
+  margin: 0 0 var(--space-3);
+  font-size: 0.875rem;
+}
+
+.month-detail-hint {
+  margin: 0;
+}
+
+.month-detail .week-add {
+  width: 100%;
+  min-height: 44px;
+  justify-content: center;
+  font-size: 0.875rem;
+}
+
+/* Telas bem estreitas (320px): a grade usa quase toda a largura e sem espaço
+   entre os dias, para cada dia ter pelo menos 44px de largura */
+@media (max-width: 374px) {
+  .month-grid-wrap {
+    margin-inline: calc(-1 * var(--space-3));
+  }
+
+  .month-weekdays,
+  .month-grid {
+    gap: 0;
+  }
+}
+
+/* Tablet em diante: contagem "3/4" visível */
+@media (min-width: 600px) {
+  .month-day-count {
+    display: block;
+  }
+
+  .month-day {
+    min-height: 64px;
+  }
+}
+
+/* Desktop: dias maiores e detalhe ao lado da grade */
+@media (min-width: 840px) {
+  .month-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    align-items: start;
+  }
+
+  .month-weekdays,
+  .month-grid {
+    gap: var(--space-1);
+  }
+
+  .month-day {
+    min-height: 84px;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: var(--space-2);
+  }
+
+  .month-day-icon {
+    position: absolute;
+    top: var(--space-2);
+    right: var(--space-2);
+    font-size: 0.875rem;
+  }
+
+  .month-detail {
+    position: sticky;
+    top: calc(var(--header-height) + var(--space-4));
+  }
+
+  .month-detail .week-activity {
+    font-size: 0.875rem;
+  }
+}

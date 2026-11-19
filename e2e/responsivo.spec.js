@@ -36,6 +36,12 @@ const SCREENS = [
   { name: 'login', path: '/login', ready: (p) => p.getByRole('heading', { name: 'Entrar' }) },
   { name: 'inicio', path: '/', ready: (p) => p.locator('.week-grid') },
   { name: 'atividade', path: '/', open: openActivityDialog, ready: (p) => p.getByRole('dialog') },
+  // Visão mensal com o detalhe de hoje aberto (atividade de nome longo)
+  {
+    name: 'mes',
+    path: () => `/?mes=${todayInSaoPaulo().slice(0, 7)}`,
+    ready: (p) => p.locator('.month-detail .week-activity'),
+  },
   { name: 'usuarios', path: '/usuarios', ready: (p) => p.locator('.user-item').first() },
   {
     name: 'whatsapp',

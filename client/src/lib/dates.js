@@ -91,3 +91,41 @@ export function formatWeekRange(start, end) {
   if (s.getMonth() !== e.getMonth()) return `${formatDayMonth(start)} a ${endText}`;
   return `${s.getDate()} a ${endText}`;
 }
+
+/** Mês (AAAA-MM) de uma data AAAA-MM-DD. */
+export function monthOf(date) {
+  return date.slice(0, 7);
+}
+
+/** Soma (ou subtrai) meses a um mês AAAA-MM. */
+export function addMonths(month, months) {
+  const [y, m] = month.split('-').map(Number);
+  const d = new Date(Date.UTC(y, m - 1 + months, 1));
+  return d.toISOString().slice(0, 7);
+}
+
+/** Último dia (AAAA-MM-DD) do mês AAAA-MM. */
+export function endOfMonth(month) {
+  return addDays(`${addMonths(month, 1)}-01`, -1);
+}
+
+/**
+ * Grade do mês (AAAA-MM): da segunda-feira da semana do dia 1 ao domingo da
+ * semana do último dia — 5 ou 6 semanas (4 só em fevereiro começando na segunda).
+ */
+export function monthGrid(month) {
+  const start = startOfWeek(`${month}-01`);
+  const end = addDays(startOfWeek(endOfMonth(month)), 6);
+  return { start, end };
+}
+
+/** Ex.: "Novembro de 2026" */
+export function formatMonthYear(month) {
+  const text = format(toLocalDate(`${month}-01`), "MMMM 'de' yyyy");
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/** Dia do mês (número) de uma data AAAA-MM-DD. */
+export function dayOfMonth(date) {
+  return Number(date.slice(8, 10));
+}
