@@ -38,19 +38,31 @@ function applyThemeColor(theme) {
   }
 }
 
-let transitionTimer;
+let fadeTimer;
 
-// Aplica o tema no <html>. Com `animate`, liga por um instante a transição
-// suave de cores (classe .theme-transition em global.css).
+// Aplica o tema no <html>. Com `animate`, usa a mesma animação do Site: as cores
+// novas "lavam" a página como uma onda de cima para baixo (View Transitions API);
+// nos navegadores sem suporte as cores mudam suavemente (.theme-transition).
 export function applyTheme(theme, { animate = false } = {}) {
   const root = document.documentElement;
-  if (animate && !prefersReducedMotion()) {
-    root.classList.add('theme-transition');
-    clearTimeout(transitionTimer);
-    transitionTimer = setTimeout(() => root.classList.remove('theme-transition'), 400);
+  const commit = () => {
+    root.dataset.theme = theme;
+    applyThemeColor(theme);
+  };
+  if (!animate || prefersReducedMotion() || root.dataset.theme === theme) {
+    commit();
+    return;
   }
-  root.dataset.theme = theme;
-  applyThemeColor(theme);
+  if (typeof document.startViewTransition === 'function') {
+    root.classList.add('theme-wave');
+    const transition = document.startViewTransition(commit);
+    transition.finished.finally(() => root.classList.remove('theme-wave'));
+    return;
+  }
+  root.classList.add('theme-transition');
+  commit();
+  clearTimeout(fadeTimer);
+  fadeTimer = setTimeout(() => root.classList.remove('theme-transition'), 700);
 }
 
 export function saveTheme(theme) {
