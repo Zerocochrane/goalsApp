@@ -1,9 +1,52 @@
-import { useState } from 'react';
-import { Link, NavLink, Outlet, useMatch } from 'react-router';
+import { useEffect, useState } from 'react';
+import { Link, NavLink, Outlet, useLocation, useMatch } from 'react-router';
 import { useAuth } from '../auth/AuthContext.jsx';
+import { api } from '../lib/api.js';
+import { onFriendsChanged } from '../lib/friends.js';
 import t from '../i18n/pt-BR.js';
 import StreakBadge from './StreakBadge.jsx';
 import ThemeToggle from './ThemeToggle.jsx';
+
+const PENDING_POLL_MS = 60_000;
+
+/**
+ * Pedidos de amizade recebidos e ainda sem resposta (contador da aba "Amigos").
+ * Recarrega ao trocar de página, quando a página de amigos muda algo, ao voltar o foco
+ * e a cada minuto.
+ */
+function usePendingFriendRequests() {
+  const location = useLocation();
+  const [count, setCount] = useState(0);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    let ignore = false;
+    api('/friends/pending')
+      .then((data) => !ignore && setCount(data.recebidos))
+      .catch(() => {
+        // Sem o contador o app segue funcionando
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [location.key, reloadKey]);
+
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === 'visible') setReloadKey((k) => k + 1);
+    };
+    const timer = setInterval(refresh, PENDING_POLL_MS);
+    window.addEventListener('focus', refresh);
+    const off = onFriendsChanged(refresh);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('focus', refresh);
+      off();
+    };
+  }, []);
+
+  return count;
+}
 
 const NAV_ICONS = {
   home: (
@@ -20,6 +63,13 @@ const NAV_ICONS = {
       <path d="M18 14.3c2.1.7 3.5 2.8 3.5 5.7" />
     </>
   ),
+  friends: (
+    <>
+      <circle cx="8" cy="8.5" r="3" />
+      <circle cx="16" cy="8.5" r="3" />
+      <path d="M2.5 19c0-3 2.4-5 5.5-5 1.6 0 3 .5 4 1.5 1-1 2.4-1.5 4-1.5 3.1 0 5.5 2 5.5 5" />
+    </>
+  ),
   chat: <path d="M4 20l1.4-4.2A8 8 0 1 1 8.4 19L4 20z" />,
   user: (
     <>
@@ -30,7 +80,7 @@ const NAV_ICONS = {
 };
 
 /** Link da navegação: ícone (só no celular) + rótulo; o curto substitui o longo no celular. */
-function NavItem({ to, end, icon, label, shortLabel }) {
+function NavItem({ to, end, icon, label, shortLabel, count = 0, countLabel }) {
   return (
     <NavLink to={to} end={end} className="app-nav-link">
       <svg
@@ -56,6 +106,14 @@ function NavItem({ to, end, icon, label, shortLabel }) {
       ) : (
         <span>{label}</span>
       )}
+      {count > 0 && (
+        <>
+          <span className="app-nav-count" aria-hidden="true">
+            {count > 9 ? '9+' : count}
+          </span>
+          <span className="sr-only">{countLabel}</span>
+        </>
+      )}
     </NavLink>
   );
 }
@@ -63,6 +121,7 @@ function NavItem({ to, end, icon, label, shortLabel }) {
 export default function Layout() {
   const { user, logout } = useAuth();
   const [loggingOut, setLoggingOut] = useState(false);
+  const pendingFriends = usePendingFriendRequests();
   // Calendário (início) usa um container mais largo; cabeçalho e abas acompanham
   const isWide = useMatch({ path: '/', end: true }) !== null;
 
@@ -105,6 +164,13 @@ export default function Layout() {
       {/* No celular vira barra de abas fixa no rodapé (ícone + rótulo curto) */}
       <nav className="app-nav" aria-label={t.header.nav}>
         <NavItem to="/" end icon="home" label={t.nav.home} />
+        <NavItem
+          to="/amigos"
+          icon="friends"
+          label={t.nav.friends}
+          count={pendingFriends}
+          countLabel={t.nav.friendsPending(pendingFriends)}
+        />
         {user.isMaster && <NavItem to="/usuarios" icon="users" label={t.nav.users} />}
         {user.isMaster && <NavItem to="/whatsapp" icon="chat" label={t.nav.whatsapp} />}
         <NavItem to="/perfil" icon="user" label={t.nav.profile} shortLabel={t.nav.profileShort} />

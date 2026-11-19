@@ -9,6 +9,7 @@ const SCREENS = [
   { name: 'login', path: '/login', heading: 'Entrar', public: true },
   { name: 'inicio', path: '/', heading: 'Início' },
   { name: 'nova-atividade', path: '/', heading: 'Nova atividade', open: openActivityDialog },
+  { name: 'amigos', path: '/amigos', heading: 'Amigos', exact: true },
   { name: 'perfil', path: '/perfil', heading: 'Meu perfil' },
   { name: 'usuarios', path: '/usuarios', heading: 'Usuários' },
   { name: 'whatsapp', path: '/whatsapp', heading: 'WhatsApp' },
@@ -61,7 +62,9 @@ for (const scheme of ['light', 'dark']) {
           }
           await page.goto(screen.path);
           await screen.open?.(page);
-          await expect(page.getByRole('heading', { name: screen.heading })).toBeVisible();
+          await expect(
+            page.getByRole('heading', { name: screen.heading, exact: screen.exact }),
+          ).toBeVisible();
           await page.waitForLoadState('networkidle');
 
           // pt-BR

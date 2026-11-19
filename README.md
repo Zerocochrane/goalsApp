@@ -197,13 +197,15 @@ internos são aceitos no `redirect`.
 - **API** ([`server/test/api/`](server/test/api/)): o app Express real sobre um SQLite temporário
   com as migrations reais — login/cookie/JWT e rate limit, permissões (master × usuário ×
   sem login), usuários e perfil, atividades (validação, isolamento entre usuários, versões),
-  calendário, validação pelo link (concluída, já validada, expirada, de outra pessoa) e
-  sequência.
-- **E2E** ([`e2e/`](e2e/)): sobe `server/index.js` servindo o build, na porta 4199, com banco
-  próprio em `e2e/.data/` (apagado a cada execução) e WhatsApp desligado.
+  calendário, validação pelo link (concluída, já validada, expirada, de outra pessoa),
+  sequência e amigos (pedido → aceitar/recusar/cancelar → desfazer, duplicidade, privacidade).
+- **E2E** ([`e2e/`](e2e/)): sobe `server/index.js` servindo o build, na porta 4199 (ou
+  `E2E_PORT`, para rodar duas suítes ao mesmo tempo), com banco próprio em `e2e/.data/` (apagado a cada execução) e WhatsApp desligado.
   - `fluxo.spec.js`: login → criar atividade → validar pelo link → dia verde; e link expirado →
     atividade e dia vermelhos. A atividade é de amanhã e o agendador roda com relógio simulado,
     então o teste não depende da hora em que roda.
+  - `amigos.spec.js`: dois usuários viram amigos pela tela (contador na aba, aceitar, remover
+    com confirmação), recusar e cancelar pedidos, sem expor atividades nem telefone.
   - `revisao.spec.js`: todas as telas em claro e escuro, no celular (360 px), tablet e desktop —
     textos em pt-BR, cores do tema e nenhuma rolagem horizontal. Grava um print de cada tela em
     `test-results/`.

@@ -15,6 +15,7 @@ const SCREENS = [
     heading: 'Nova atividade',
     open: (page) => page.locator('[data-add-date]').first().click(),
   },
+  { name: 'amigos', path: '/amigos', heading: 'Amigos', exact: true },
   { name: 'perfil', path: '/perfil', heading: 'Meu perfil' },
   { name: 'usuarios', path: '/usuarios', heading: 'Usuários' },
   { name: 'whatsapp', path: '/whatsapp', heading: 'WhatsApp' },
@@ -68,7 +69,9 @@ for (const width of [320, 375, 414]) {
         await page.goto(screen.path);
         if (screen.path === '/') await page.locator('.week-grid').waitFor();
         await screen.open?.(page);
-        await expect(page.getByRole('heading', { name: screen.heading })).toBeVisible();
+        await expect(
+          page.getByRole('heading', { name: screen.heading, exact: screen.exact }),
+        ).toBeVisible();
         await page.waitForLoadState('networkidle');
         expect(await smallTargets(page)).toEqual([]);
       });

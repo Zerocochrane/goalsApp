@@ -1,4 +1,4 @@
-// Navegação no celular (UX-03): barra de abas fixa no rodapé. Em 320px as 4 abas do
+// Navegação no celular (UX-03): barra de abas fixa no rodapé. Em 320px as 5 abas do
 // admin aparecem inteiras, sem rolagem horizontal; no desktop fica no topo.
 import { test, expect } from '@playwright/test';
 
@@ -47,7 +47,13 @@ for (const width of [320, 344, 375, 414]) {
     await expect(page.getByRole('heading', { name: 'Meu perfil' })).toBeVisible();
 
     const m = await measureNav(page);
-    expect(m.links.map((l) => l.text)).toEqual(['Início', 'Usuários', 'WhatsApp', 'Perfil']);
+    expect(m.links.map((l) => l.text)).toEqual([
+      'Início',
+      'Amigos',
+      'Usuários',
+      'WhatsApp',
+      'Perfil',
+    ]);
     expect(m.nav.scrollWidth).toBeLessThanOrEqual(m.nav.clientWidth);
     expect(m.pageScrollWidth).toBeLessThanOrEqual(width);
     expect(Math.round(m.nav.bottom)).toBe(m.viewport.height);
@@ -79,7 +85,13 @@ test('desktop: abas no topo com rótulos completos', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Início' })).toBeVisible();
   const m = await measureNav(page);
-  expect(m.links.map((l) => l.text)).toEqual(['Início', 'Usuários', 'WhatsApp', 'Meu perfil']);
+  expect(m.links.map((l) => l.text)).toEqual([
+    'Início',
+    'Amigos',
+    'Usuários',
+    'WhatsApp',
+    'Meu perfil',
+  ]);
   expect(m.nav.top).toBeLessThan(200);
   await expect(page.locator('.app-nav-icon').first()).toBeHidden();
 });

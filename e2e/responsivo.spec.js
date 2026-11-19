@@ -48,6 +48,7 @@ const SCREENS = [
     path: '/whatsapp',
     ready: (p) => p.getByRole('heading', { name: 'WhatsApp' }),
   },
+  { name: 'amigos', path: '/amigos', ready: (p) => p.locator('.friends-page .user-item') },
   { name: 'perfil', path: '/perfil', ready: (p) => p.getByRole('heading', { name: 'Meu perfil' }) },
   {
     name: 'validar',
@@ -101,6 +102,35 @@ test.beforeAll(async () => {
     });
   }
   await prisma.taskOccurrence.createMany({ data: occurrences });
+
+  // Amigos: um amigo, um pedido recebido e um enviado, todos com nome e usuário longos
+  const others = [];
+  for (const role of ['amigo', 'recebido', 'enviado']) {
+    others.push(
+      await prisma.user.create({
+        data: {
+          username: `${role}-${crypto.randomBytes(14).toString('hex')}`.slice(0, 32),
+          name: LONG_USER_NAME,
+          passwordHash: await hashPassword(PASSWORD),
+        },
+      }),
+    );
+  }
+  const [friend, requester, addressee] = others;
+  const pair = (a, b) => (a < b ? `${a}:${b}` : `${b}:${a}`);
+  await prisma.friendship.createMany({
+    data: [
+      {
+        requesterId: user.id,
+        addresseeId: friend.id,
+        pairKey: pair(user.id, friend.id),
+        status: 'aceita',
+        respondedAt: new Date(),
+      },
+      { requesterId: requester.id, addresseeId: user.id, pairKey: pair(requester.id, user.id) },
+      { requesterId: user.id, addresseeId: addressee.id, pairKey: pair(user.id, addressee.id) },
+    ],
+  });
 
   // Ocorrência de hoje, válida: a tela de validação mostra o nome longo
   // (na 1ª visita conclui; nas outras, "já validada" — ambas com o nome)

@@ -6,7 +6,8 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig, devices } from '@playwright/test';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
-const PORT = 4199;
+// E2E_PORT permite rodar duas suítes ao mesmo tempo (ex.: em worktrees diferentes)
+const PORT = Number(process.env.E2E_PORT) || 4199;
 const BASE_URL = `http://127.0.0.1:${PORT}`;
 export const E2E_DATA_DIR = path.join(ROOT, 'e2e', '.data');
 

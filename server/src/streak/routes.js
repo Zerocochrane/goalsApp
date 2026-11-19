@@ -7,6 +7,14 @@ import { computeStreak, milestoneFor, pendingMilestone } from './streak.js';
 
 /** Sequência atual do usuário, calculada sobre todo o histórico até hoje. */
 export async function currentStreak(userId, now = new Date()) {
+  return (await progressSummary(userId, now)).atual;
+}
+
+/**
+ * Progresso agregado do usuário (o que amigos podem ver): sequência atual e total de
+ * dias concluídos. Nada de atividades, horários ou telefone.
+ */
+export async function progressSummary(userId, now = new Date()) {
   const today = todayInSaoPaulo(now);
   const [activities, occurrences] = await Promise.all([
     prisma.activity.findMany({
@@ -39,11 +47,14 @@ export async function currentStreak(userId, now = new Date()) {
   ]);
 
   const dates = [...activities.map((a) => a.startDate), ...occurrences.map((o) => o.date)];
-  if (dates.length === 0) return 0;
+  if (dates.length === 0) return { atual: 0, diasConcluidos: 0 };
   const start = dates.reduce((min, date) => (date < min ? date : min));
 
   const days = buildCalendar({ activities, occurrences, start, end: today, today });
-  return computeStreak(days, { today, now });
+  return {
+    atual: computeStreak(days, { today, now }),
+    diasConcluidos: days.filter((day) => day.status === 'concluido').length,
+  };
 }
 
 export function streakRouter() {

@@ -27,8 +27,10 @@ model User {
   sessionVersion       Int      @default(0) // muda ao trocar a senha: derruba sessões antigas
   createdAt            DateTime @default(now())
 
-  activities  Activity[]
-  occurrences TaskOccurrence[]
+  activities       Activity[]
+  occurrences      TaskOccurrence[]
+  friendsRequested Friendship[]     @relation("FriendshipRequester")
+  friendsReceived  Friendship[]     @relation("FriendshipAddressee")
 }
 
 model Activity {
@@ -86,4 +88,29 @@ model MessageLog {
   createdAt DateTime      @default(now())
 
   @@index([createdAt])
+}
+
+enum FriendshipStatus {
+  pendente
+  aceita
+}
+
+// Amizade entre dois usuários: nasce como pedido (pendente) e vira amizade ao ser aceita.
+// Recusar, cancelar ou desfazer apaga a linha (permite um novo pedido depois).
+model Friendship {
+  id          Int              @id @default(autoincrement())
+  requesterId Int // quem enviou o pedido
+  addresseeId Int // quem recebeu
+  // Par de usuários independente da ordem ("menorId:maiorId"): impede pedidos duplicados
+  // nos dois sentidos (A→B e B→A)
+  pairKey     String           @unique
+  status      FriendshipStatus @default(pendente)
+  createdAt   DateTime         @default(now())
+  respondedAt DateTime?
+
+  requester User @relation("FriendshipRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee User @relation("FriendshipAddressee", fields: [addresseeId], references: [id], onDelete: Cascade)
+
+  @@index([requesterId, status])
+  @@index([addresseeId, status])
 }
