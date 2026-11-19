@@ -23,10 +23,10 @@ export function AuthProvider({ children }) {
     return () => setUnauthorizedHandler(null);
   }, []);
 
-  const login = useCallback(async (username, password) => {
+  const login = useCallback(async (username, password, remember = true) => {
     const { user } = await api('/auth/login', {
       method: 'POST',
-      body: { username, password },
+      body: { username, password, remember },
       skipAuthHandler: true,
     });
     setState({ status: 'authenticated', user });

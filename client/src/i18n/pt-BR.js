@@ -101,6 +101,13 @@ const ptBR = {
     required: 'Informe usuário e senha.',
     invalid: 'Usuário ou senha inválidos.',
     tooManyAttempts: 'Muitas tentativas de login. Aguarde um minuto e tente novamente.',
+    showPassword: 'Mostrar senha',
+    hidePassword: 'Ocultar senha',
+    remember: 'Manter conectado',
+    rememberHint: 'Por 30 dias neste aparelho. Desmarque em aparelhos compartilhados.',
+    inAppTitle: 'Precisa entrar toda vez?',
+    inAppText:
+      'O WhatsApp abre links num navegador próprio, que pode esquecer o login. Toque no menu ⋮ (ou ···) e escolha “Abrir no Chrome” ou “Abrir no Safari”.',
   },
   home: {
     title: 'Início',
@@ -215,6 +222,11 @@ const ptBR = {
   validate: {
     loading: 'Validando atividade…',
     goToCalendar: 'Ir para o calendário',
+    retry: 'Tentar de novo',
+    scheduledAt: (when) => `Agendada para ${when}`,
+    completedAt: (time) => `Concluída às ${time}`,
+    today: 'hoje',
+    at: (day, time) => `${day} às ${time}`,
   },
   notFound: {
     title: 'Página não encontrada',

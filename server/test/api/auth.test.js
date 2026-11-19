@@ -35,13 +35,31 @@ describe('POST /api/auth/login', () => {
     expect(cookie.attrs).toContain('httponly');
     expect(cookie.attrs).toContain('samesite=lax');
     expect(cookie.attrs).toContain('path=/');
-    expect(cookie.attrs.some((a) => a.startsWith('max-age=604800'))).toBe(true);
+    expect(cookie.attrs.some((a) => a.startsWith('max-age=2592000'))).toBe(true);
     // APP_URL http:// → sem "Secure" (senão o cookie não funcionaria sem HTTPS)
     expect(cookie.attrs).not.toContain('secure');
 
     const payload = jwt.decode(cookie.value, { complete: true });
     expect(payload.header.alg).toBe('HS256');
     expect(payload.payload.sub).toBe(String(ana.id));
+  });
+
+  test('sem "Manter conectado": cookie de sessão do navegador e JWT de 12h', async () => {
+    const res = await login({ username: 'ana', password: PASSWORD, remember: false });
+    expect(res.status).toBe(200);
+    const cookie = sessionCookie(res);
+    expect(cookie.attrs.some((a) => a.startsWith('max-age='))).toBe(false);
+    expect(cookie.attrs.some((a) => a.startsWith('expires='))).toBe(false);
+    const { iat, exp, r } = jwt.decode(cookie.value);
+    expect(exp - iat).toBe(12 * 60 * 60);
+    expect(r).toBeUndefined();
+  });
+
+  test('"Manter conectado" (padrão): JWT de 30 dias marcado como lembrado', async () => {
+    const res = await login({ username: 'ana', password: PASSWORD, remember: true });
+    const { iat, exp, r } = jwt.decode(sessionCookie(res).value);
+    expect(exp - iat).toBe(30 * 24 * 60 * 60);
+    expect(r).toBe(1);
   });
 
   test('usuário sem diferenciar maiúsculas e com espaços', async () => {
@@ -134,6 +152,33 @@ describe('sessão', () => {
     const res = await agent.get('/api/auth/me');
     expect(res.status).toBe(401);
     expect(sessionCookie(res)?.value).toBe('');
+  });
+
+  test('GET /me renova a sessão lembrada com mais de 1 dia', async () => {
+    const iat = Math.floor(Date.now() / 1000) - 2 * 24 * 60 * 60;
+    const exp = iat + 30 * 24 * 60 * 60;
+    const token = jwt.sign({ sub: String(ana.id), v: 0, r: 1, iat, exp }, process.env.JWT_SECRET);
+    const res = await request(app).get('/api/auth/me').set('Cookie', `goals_session=${token}`);
+    expect(res.status).toBe(200);
+    const cookie = sessionCookie(res);
+    expect(cookie.attrs.some((a) => a.startsWith('max-age=2592000'))).toBe(true);
+    const fresh = jwt.decode(cookie.value);
+    expect(fresh.r).toBe(1);
+    expect(fresh.exp - fresh.iat).toBe(30 * 24 * 60 * 60);
+  });
+
+  test('GET /me não renova sessão recente nem sessão curta', async () => {
+    const recent = jwt.sign({ sub: String(ana.id), v: 0, r: 1 }, process.env.JWT_SECRET, {
+      expiresIn: 60 * 60,
+    });
+    const iat = Math.floor(Date.now() / 1000) - 2 * 24 * 60 * 60;
+    const exp = Math.floor(Date.now() / 1000) + 60 * 60;
+    const short = jwt.sign({ sub: String(ana.id), v: 0, iat, exp }, process.env.JWT_SECRET);
+    for (const token of [recent, short]) {
+      const res = await request(app).get('/api/auth/me').set('Cookie', `goals_session=${token}`);
+      expect(res.status).toBe(200);
+      expect(sessionCookie(res)).toBeNull();
+    }
   });
 
   test('cookie antigo (sem versão de sessão) continua valendo', async () => {

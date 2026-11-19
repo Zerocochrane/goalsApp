@@ -43,7 +43,7 @@ export function findOccurrence(userId, date) {
 export async function loginWithForm(page, username, password = PASSWORD) {
   await expect(page.getByRole('heading', { name: 'Entrar' })).toBeVisible();
   await page.getByLabel('Usuário').fill(username);
-  await page.getByLabel('Senha').fill(password);
+  await page.getByLabel('Senha', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Entrar' }).click();
 }
 

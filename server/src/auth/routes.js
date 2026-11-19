@@ -3,7 +3,12 @@ import { rateLimit } from 'express-rate-limit';
 import { prisma } from '../db/prisma.js';
 import { publicUserSelect, requireAuth } from './middleware.js';
 import { burnPasswordCheck, verifyPassword } from './password.js';
-import { clearSessionCookie, setSessionCookie } from './session.js';
+import {
+  clearSessionCookie,
+  readSession,
+  refreshSessionCookie,
+  setSessionCookie,
+} from './session.js';
 
 // 5 tentativas por minuto por IP (logins certos não contam)
 const loginLimiter = rateLimit({
@@ -24,7 +29,7 @@ export function authRouter() {
   const router = Router();
 
   router.post('/login', loginLimiter, async (req, res) => {
-    const { username, password } = req.body ?? {};
+    const { username, password, remember } = req.body ?? {};
     if (
       typeof username !== 'string' ||
       typeof password !== 'string' ||
@@ -47,7 +52,8 @@ export function authRouter() {
       : await burnPasswordCheck(password);
     if (!ok) return res.status(401).json({ error: INVALID });
 
-    setSessionCookie(res, user);
+    // "Manter conectado" vem marcado; só `remember: false` pede sessão curta
+    setSessionCookie(res, user, { remember: remember !== false });
     res.json({ user: toPublicUser(user) });
   });
 
@@ -57,6 +63,7 @@ export function authRouter() {
   });
 
   router.get('/me', requireAuth, (req, res) => {
+    refreshSessionCookie(res, readSession(req), req.user);
     res.json({ user: req.user });
   });
 

@@ -28,8 +28,9 @@ function smallTargets(page) {
     return [...document.querySelectorAll(selector)]
       .filter((el) => !el.closest('.sr-only') && el.getClientRects().length > 0)
       .map((el) => {
-        // Checkbox invisível sobre o rótulo: o alvo é o rótulo (.weekday-option)
-        const target = el.matches('.weekday-option input') ? el.parentElement : el;
+        // Checkbox dentro do rótulo (ex.: .weekday-option, "Manter conectado"): o toque
+        // no rótulo inteiro marca, então o alvo é o rótulo
+        const target = el.matches('label > input[type="checkbox"]') ? el.parentElement : el;
         const { width, height } = target.getBoundingClientRect();
         const name = (el.getAttribute('aria-label') || el.textContent || el.name || '').trim();
         return { name: `${el.tagName.toLowerCase()} "${name.slice(0, 40)}"`, width, height };

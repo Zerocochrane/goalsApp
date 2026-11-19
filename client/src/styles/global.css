@@ -385,6 +385,19 @@ summary {
   width: 100%;
 }
 
+/* <Link> com cara de botão: sem sublinhado e sem a cor de a:hover */
+a.button {
+  text-decoration: none;
+}
+
+a.button-primary:hover {
+  color: var(--color-on-primary);
+}
+
+a.button-ghost:hover {
+  color: var(--color-text);
+}
+
 .form-error {
   color: var(--color-danger);
   background: var(--color-danger-bg);
@@ -440,6 +453,83 @@ summary {
 
 .login-card .muted {
   margin-bottom: var(--space-6);
+}
+
+/* Senha com botão de mostrar/ocultar dentro do campo */
+.password-field {
+  position: relative;
+  display: flex;
+}
+
+.password-field .input {
+  flex: 1;
+  min-width: 0;
+  padding-right: 48px;
+}
+
+.password-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text-muted);
+  border-radius: var(--radius-small);
+  cursor: pointer;
+}
+
+.password-toggle:hover {
+  color: var(--color-text);
+}
+
+.password-toggle:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: -3px;
+}
+
+.login-remember {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.login-remember input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--color-primary);
+}
+
+.login-remember-hint {
+  margin: 0 0 var(--space-4);
+}
+
+.login-inapp-hint {
+  margin-top: var(--space-6);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-small);
+  background: var(--color-surface-muted);
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.login-inapp-title {
+  margin: 0 0 var(--space-1);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.login-inapp-hint p:last-child {
+  margin: 0;
 }
 
 @media (max-width: 480px) {
@@ -1440,13 +1530,18 @@ summary {
 }
 
 /* ---------- Validação pelo link (/validar/:token) ---------- */
+/* Mobile-first: resultado grande (✓ verde / ✕ vermelho) e botão em largura total. */
 
 .validate-page {
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: 60vh;
+  min-height: 60dvh;
+}
+
+.validate-loading {
   gap: var(--space-3);
-  min-height: 50vh;
   color: var(--color-text-muted);
 }
 
@@ -1454,25 +1549,86 @@ summary {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-3);
   width: 100%;
   max-width: 28rem;
+  padding: var(--space-8) var(--space-4) var(--space-6);
   text-align: center;
   color: var(--color-text);
 }
 
 .validate-icon {
-  font-size: 2.5rem;
-  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 96px;
+  height: 96px;
+  margin-bottom: var(--space-2);
+  border-radius: 50%;
+}
+
+.validate-icon svg {
+  width: 56px;
+  height: 56px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.validate-card[data-result='success'] .validate-icon {
+  background: var(--color-success);
+  color: var(--color-on-primary);
+}
+
+.validate-card[data-result='error'] .validate-icon {
+  background: var(--color-danger);
+  color: var(--color-on-primary);
 }
 
 .validate-title {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 1.5rem;
+  line-height: 1.25;
+  text-wrap: balance;
 }
 
-.validate-card .muted {
+.validate-activity {
   margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.validate-meta {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.validate-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-self: stretch;
+  margin-top: var(--space-4);
+}
+
+.validate-actions .button {
+  width: 100%;
+  min-height: 48px;
+}
+
+@media (min-width: 481px) {
+  .validate-actions {
+    align-self: center;
+  }
+
+  .validate-actions .button {
+    width: auto;
+    min-width: 16rem;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
