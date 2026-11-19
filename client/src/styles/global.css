@@ -125,18 +125,86 @@ summary {
 
 /* ---------- Alternância de tema ---------- */
 
-/* Ligada por ~400ms ao trocar de tema: cores mudam suavemente em toda a página. */
+/* Mesma animação do Site (Zerocochrane/Site): as cores novas "lavam" a página
+   como uma onda, de cima para baixo, entrando em foco (View Transitions API). */
+@keyframes theme-wave {
+  from {
+    -webkit-mask-position: 0% 100%;
+    mask-position: 0% 100%;
+  }
+  to {
+    -webkit-mask-position: 100% 0%;
+    mask-position: 100% 0%;
+  }
+}
+
+@keyframes theme-focus-in {
+  from {
+    filter: blur(14px);
+    opacity: 0.6;
+  }
+  60% {
+    opacity: 1;
+  }
+  to {
+    filter: blur(0);
+    opacity: 1;
+  }
+}
+
+@keyframes theme-focus-out {
+  from {
+    filter: blur(0);
+  }
+  to {
+    filter: blur(10px);
+  }
+}
+
+.theme-wave::view-transition-old(root) {
+  animation: theme-focus-out 1.3s ease both;
+  z-index: 1;
+}
+
+.theme-wave::view-transition-new(root) {
+  animation:
+    theme-wave 1.3s cubic-bezier(0.55, 0.05, 0.3, 1) both,
+    theme-focus-in 1.3s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  z-index: 2;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2000 3000' preserveAspectRatio='none'%3E%3Cfilter id='f' x='-20%' y='-20%' width='140%' height='140%'%3E%3CfeGaussianBlur stdDeviation='70'/%3E%3C/filter%3E%3Cpath d='M-200 -200H2200V1500Q1875.0 1405 1750 1500T1500 1500T1250 1500T1000 1500T750 1500T500 1500T250 1500T0 1500L-200 1500Z' fill='black' filter='url%28%23f%29'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2000 3000' preserveAspectRatio='none'%3E%3Cfilter id='f' x='-20%' y='-20%' width='140%' height='140%'%3E%3CfeGaussianBlur stdDeviation='70'/%3E%3C/filter%3E%3Cpath d='M-200 -200H2200V1500Q1875.0 1405 1750 1500T1500 1500T1250 1500T1000 1500T750 1500T500 1500T250 1500T0 1500L-200 1500Z' fill='black' filter='url%28%23f%29'/%3E%3C/svg%3E");
+  -webkit-mask-size: 200% 300%;
+  mask-size: 200% 300%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+
+/* O botão fica por cima, animando o sol/lua ao vivo enquanto a onda passa */
+.theme-wave::view-transition-group(theme-toggle) {
+  z-index: 3;
+  animation: none;
+}
+
+.theme-wave::view-transition-old(theme-toggle) {
+  display: none;
+}
+
+.theme-wave::view-transition-new(theme-toggle) {
+  animation: none;
+}
+
+/* Navegadores sem a onda: as cores mudam suavemente (~700ms) */
 .theme-transition,
 .theme-transition *,
 .theme-transition *::before,
 .theme-transition *::after {
   transition:
-    background-color 0.35s ease,
-    border-color 0.35s ease,
-    color 0.35s ease,
-    fill 0.35s ease,
-    stroke 0.35s ease,
-    box-shadow 0.35s ease !important;
+    background-color 0.6s ease,
+    border-color 0.6s ease,
+    color 0.6s ease,
+    fill 0.6s ease,
+    stroke 0.6s ease,
+    box-shadow 0.6s ease !important;
 }
 
 .theme-toggle {
@@ -152,43 +220,74 @@ summary {
   background: transparent;
   color: var(--color-text);
   cursor: pointer;
-  transition: background-color 0.15s;
+  transition:
+    border-color 0.25s ease,
+    background-color 0.25s ease,
+    transform 0.25s ease;
+  view-transition-name: theme-toggle;
 }
 
 .theme-toggle:hover {
+  border-color: var(--color-primary);
   background: var(--color-surface-muted);
 }
 
-.theme-icon {
-  overflow: visible;
+.theme-toggle:active {
+  transform: scale(0.92);
 }
 
-.theme-icon-sun,
-.theme-icon-moon {
-  transform-box: view-box;
+/* Ícone sol/lua (igual ao Site) */
+.theme-toggle svg {
+  overflow: visible;
+  transition: transform 0.6s cubic-bezier(0.34, 1.4, 0.5, 1);
+}
+
+.theme-toggle .tt-disc {
+  fill: currentColor;
+  transform-origin: 12px 12px;
+  transform: scale(0.62);
+  transition: transform 0.6s cubic-bezier(0.34, 1.4, 0.5, 1);
+}
+
+.theme-toggle .tt-cut {
+  transform: translate(11px, -11px);
+  transition: transform 0.55s cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.theme-toggle .tt-rays {
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
   transform-origin: 12px 12px;
   transition:
-    transform 0.5s cubic-bezier(0.4, 0, 0.2, 1),
-    opacity 0.3s ease;
+    transform 0.5s cubic-bezier(0.65, 0, 0.35, 1),
+    opacity 0.35s ease;
 }
 
-/* Modo claro mostra o sol; o escuro mostra a lua. A troca gira e cruza os ícones. */
-.theme-toggle[data-theme-icon='light'] .theme-icon-moon,
-.theme-toggle[data-theme-icon='dark'] .theme-icon-sun {
+/* Lua: o disco cresce, a "sombra" desliza por cima formando o crescente, os raios recolhem girando */
+.theme-toggle.is-dark svg {
+  transform: rotate(-25deg);
+}
+
+.theme-toggle.is-dark .tt-disc {
+  transform: scale(1);
+}
+
+.theme-toggle.is-dark .tt-cut {
+  transform: translate(0, 0);
+}
+
+.theme-toggle.is-dark .tt-rays {
+  transform: rotate(90deg) scale(0.3);
   opacity: 0;
 }
 
-.theme-toggle[data-theme-icon='light'] .theme-icon-moon {
-  transform: rotate(-90deg) scale(0.4);
-}
-
-.theme-toggle[data-theme-icon='dark'] .theme-icon-sun {
-  transform: rotate(90deg) scale(0.4);
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .theme-icon-sun,
-  .theme-icon-moon {
+  .theme-toggle,
+  .theme-toggle svg,
+  .theme-toggle .tt-disc,
+  .theme-toggle .tt-cut,
+  .theme-toggle .tt-rays {
     transition: none;
   }
 }
